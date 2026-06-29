@@ -1,4 +1,9 @@
-const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+import {
+  applyPopToBoard,
+  formatMechanismsKey,
+  mechanismsFromLevel,
+} from "./systems/mechanism-dye-logic.js";
+
 export const DEFAULT_MAX_DEPTH = 40;
 export const LARGE_GRID_TIME_BUDGET_MS = 2500;
 const TIMEOUT_CHECK_INTERVAL = 2048;
@@ -29,23 +34,8 @@ export function isBoardUnified(board) {
   return activeCount >= 1;
 }
 
-export function applyPop(board, size, row, col) {
-  const idx = row * size + col;
-  if (board[idx] < 0) return null;
-
-  const next = board.slice();
-  const color = next[idx];
-  next[idx] = -1;
-
-  for (const [dr, dc] of DIRS) {
-    const nr = row + dr;
-    const nc = col + dc;
-    if (nr < 0 || nr >= size || nc < 0 || nc >= size) continue;
-    const ni = nr * size + nc;
-    if (next[ni] >= 0) next[ni] = color;
-  }
-
-  return next;
+export function applyPop(board, size, row, col, mechanisms = new Map()) {
+  return applyPopToBoard(board, size, mechanisms, row, col);
 }
 
 function createDeadlineTracker(deadline) {
@@ -63,7 +53,7 @@ function createDeadlineTracker(deadline) {
   };
 }
 
-function solveMinStepsBfs(board, size, maxDepth, deadline = Infinity) {
+function solveMinStepsBfs(board, size, maxDepth, deadline = Infinity, mechanisms = new Map()) {
   const timeout = createDeadlineTracker(deadline);
   const visited = new Set([board.join(",")]);
   const queue = [{ board, steps: 0 }];
@@ -79,7 +69,7 @@ function solveMinStepsBfs(board, size, maxDepth, deadline = Infinity) {
     for (let row = 0; row < size; row += 1) {
       for (let col = 0; col < size; col += 1) {
         if (current[row * size + col] < 0) continue;
-        const next = applyPop(current, size, row, col);
+        const next = applyPop(current, size, row, col, mechanisms);
         if (!next) continue;
         if (isBoardUnified(next)) return steps + 1;
 
@@ -94,7 +84,7 @@ function solveMinStepsBfs(board, size, maxDepth, deadline = Infinity) {
   return -1;
 }
 
-function dfsMinSteps(board, size, depth, limit, pathKeys, timeout) {
+function dfsMinSteps(board, size, depth, limit, pathKeys, timeout, mechanisms = new Map()) {
   if (timeout.isExpired()) return -2;
   if (isBoardUnified(board)) return depth;
   if (depth >= limit) return -1;
@@ -102,14 +92,14 @@ function dfsMinSteps(board, size, depth, limit, pathKeys, timeout) {
   for (let row = 0; row < size; row += 1) {
     for (let col = 0; col < size; col += 1) {
       if (board[row * size + col] < 0) continue;
-      const next = applyPop(board, size, row, col);
+      const next = applyPop(board, size, row, col, mechanisms);
       if (!next) continue;
 
       const key = next.join(",");
       if (pathKeys.has(key)) continue;
       pathKeys.add(key);
 
-      const solved = dfsMinSteps(next, size, depth + 1, limit, pathKeys, timeout);
+      const solved = dfsMinSteps(next, size, depth + 1, limit, pathKeys, timeout, mechanisms);
       pathKeys.delete(key);
       if (solved === -2) return -2;
       if (solved >= 0) return solved;
@@ -119,19 +109,19 @@ function dfsMinSteps(board, size, depth, limit, pathKeys, timeout) {
   return -1;
 }
 
-function solveMinStepsIddfs(board, size, maxDepth, deadline) {
+function solveMinStepsIddfs(board, size, maxDepth, deadline, mechanisms = new Map()) {
   const timeout = createDeadlineTracker(deadline);
   for (let limit = 1; limit <= maxDepth; limit += 1) {
     if (timeout.isExpiredNow()) return -2;
     const pathKeys = new Set([board.join(",")]);
-    const solved = dfsMinSteps(board, size, 0, limit, pathKeys, timeout);
+    const solved = dfsMinSteps(board, size, 0, limit, pathKeys, timeout, mechanisms);
     if (solved === -2) return -2;
     if (solved >= 0) return solved;
   }
   return -1;
 }
 
-function dfsSolvePath(board, size, depth, limit, pathKeys, moves, timeout) {
+function dfsSolvePath(board, size, depth, limit, pathKeys, moves, timeout, mechanisms = new Map()) {
   if (timeout.isExpired()) return null;
   if (isBoardUnified(board)) {
     return { steps: depth, moves: [...moves] };
@@ -141,7 +131,7 @@ function dfsSolvePath(board, size, depth, limit, pathKeys, moves, timeout) {
   for (let row = 0; row < size; row += 1) {
     for (let col = 0; col < size; col += 1) {
       if (board[row * size + col] < 0) continue;
-      const next = applyPop(board, size, row, col);
+      const next = applyPop(board, size, row, col, mechanisms);
       if (!next) continue;
 
       const key = next.join(",");
@@ -156,6 +146,7 @@ function dfsSolvePath(board, size, depth, limit, pathKeys, moves, timeout) {
         pathKeys,
         [...moves, { row, col }],
         timeout,
+        mechanisms,
       );
       pathKeys.delete(key);
       if (result) return result;
@@ -170,14 +161,15 @@ export function solveOptimal(board, size, maxDepth = DEFAULT_MAX_DEPTH, options 
     return { steps: 0, moves: [], timedOut: false };
   }
 
+  const mechanisms = options.mechanisms ?? new Map();
   const deadline = options.deadline ?? (
     size > 4 ? Date.now() + LARGE_GRID_TIME_BUDGET_MS : Infinity
   );
   const timeout = createDeadlineTracker(deadline);
 
   const minSteps = size <= 4
-    ? solveMinStepsBfs(board, size, maxDepth, deadline)
-    : solveMinStepsIddfs(board, size, maxDepth, deadline);
+    ? solveMinStepsBfs(board, size, maxDepth, deadline, mechanisms)
+    : solveMinStepsIddfs(board, size, maxDepth, deadline, mechanisms);
 
   if (minSteps === -2) {
     return { steps: -1, moves: [], timedOut: true };
@@ -187,7 +179,7 @@ export function solveOptimal(board, size, maxDepth = DEFAULT_MAX_DEPTH, options 
   }
 
   const pathKeys = new Set([board.join(",")]);
-  const pathResult = dfsSolvePath(board, size, 0, minSteps, pathKeys, [], timeout);
+  const pathResult = dfsSolvePath(board, size, 0, minSteps, pathKeys, [], timeout, mechanisms);
   if (pathResult) {
     return { ...pathResult, timedOut: false };
   }
@@ -200,7 +192,8 @@ export function solveOptimal(board, size, maxDepth = DEFAULT_MAX_DEPTH, options 
 
 export function solveLevel(level, maxDepth = DEFAULT_MAX_DEPTH, options = {}) {
   const { size, board } = boardFromLevel(level);
-  return solveOptimal(board, size, maxDepth, options);
+  const mechanisms = mechanismsFromLevel(level, size);
+  return solveOptimal(board, size, maxDepth, { ...options, mechanisms });
 }
 
 function getSolverWorker() {
@@ -250,5 +243,6 @@ export function solveLevelAsync(
 
 export function levelBoardKey(level) {
   const { size, board } = boardFromLevel(level);
-  return `${size}|${board.join(",")}`;
+  const mechKey = formatMechanismsKey(level);
+  return `${size}|${board.join(",")}|${mechKey}`;
 }

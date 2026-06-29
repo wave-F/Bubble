@@ -1,4 +1,8 @@
 import levelsConfig from "./config/levels.json" with { type: "json" };
+import {
+  mechanismsFromLevel,
+  mechanismsToLevelList,
+} from "./systems/mechanism-dye-logic.js";
 
 function asNumber(value, fallback) {
   const n = Number(value);
@@ -59,6 +63,8 @@ function normalizeLevel(rawLevel, index) {
   const cellCount = gridSize * gridSize;
   const fruitCount = Math.max(cellCount, Math.floor(asNumber(rawLevel?.fruitCount, colorCounts.reduce((sum, item) => sum + item.count, 0))));
   const cells = normalizeCells(rawLevel?.cells, gridSize);
+  const mechanismMap = mechanismsFromLevel(rawLevel, gridSize);
+  const mechanisms = mechanismsToLevelList(mechanismMap);
 
   return {
     id,
@@ -77,6 +83,7 @@ function normalizeLevel(rawLevel, index) {
     colorIds: Array.isArray(rawLevel?.colorIds) ? rawLevel.colorIds.map((v) => Math.floor(asNumber(v, 0))) : undefined,
     colorCounts,
     cells,
+    mechanisms,
   };
 }
 

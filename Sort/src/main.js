@@ -97,7 +97,7 @@ const restartBtn = document.getElementById("restart-btn");
 const levelTestToggleBtn = document.getElementById("level-test-toggle");
 const levelTestPanelEl = document.getElementById("level-test-panel");
 const levelTestSelectEl = document.getElementById("level-test-select");
-const levelTestJumpBtn = document.getElementById("level-test-jump");
+let suppressLevelTestJump = false;
 const levelTestAddCoinsBtn = document.getElementById("level-test-add-coins");
 const clearDataTestBtn = document.getElementById("clear-data-test-btn");
 const lightDebugToggleBtn = document.getElementById("light-debug-toggle");
@@ -649,10 +649,13 @@ const sessionFlow = createSessionFlowController({
     gameAudio.playRandomPopAudio({ volumeScale: 0.3 });
     setGameplayRulesPanelVisible(true);
     const gridSize = level.gridSize ?? 3;
+    const hasMechanisms = Array.isArray(level.mechanisms) && level.mechanisms.length > 0;
     const tip = index === 0
       ? `第1关：${gridSize}×${gridSize}，捏碎泡泡会给四周染色！`
-      : `第${index + 1}关：${gridSize}×${gridSize}，让剩下泡泡颜色一致`;
-    gameUI.showCommentary(tip, index === 0 ? 2800 : 2200);
+      : hasMechanisms
+        ? `第${index + 1}关：带箭头的机制泡泡被染色后，会沿箭头方向传播颜色`
+        : `第${index + 1}关：${gridSize}×${gridSize}，让剩下泡泡颜色一致`;
+    gameUI.showCommentary(tip, hasMechanisms ? 3200 : index === 0 ? 2800 : 2200);
     void warmupBubbleRenderer({ renderer, scene, camera, fruits });
   },
   createBubbleEntity: ({
@@ -665,6 +668,7 @@ const sessionFlow = createSessionFlowController({
     motionMode,
     gridCol,
     gridRow,
+    mechanismDirection,
   }) => new BubbleEntity({
     id,
     colorId,
@@ -675,6 +679,7 @@ const sessionFlow = createSessionFlowController({
     motionMode,
     gridCol,
     gridRow,
+    mechanismDirection,
   }),
 });
 
@@ -1637,7 +1642,7 @@ function setupLightDebugControls() {
 }
 
 function setupLevelTestControls() {
-  if (!levelTestToggleBtn || !levelTestPanelEl || !levelTestSelectEl || !levelTestJumpBtn) {
+  if (!levelTestToggleBtn || !levelTestPanelEl || !levelTestSelectEl) {
     return;
   }
 
@@ -1668,7 +1673,8 @@ function setupLevelTestControls() {
     levelTestPanelEl.classList.toggle("hidden");
   });
 
-  levelTestJumpBtn.addEventListener("click", () => {
+  levelTestSelectEl.addEventListener("change", () => {
+    if (suppressLevelTestJump) return;
     gameAudio.playUiClickAudio();
     const targetIndex = Number(levelTestSelectEl.value);
     if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= LEVELS.length) {
@@ -1695,7 +1701,9 @@ function setupLevelTestControls() {
 
 function setLevelTestSelection(index) {
   if (!levelTestSelectEl) return;
+  suppressLevelTestJump = true;
   levelTestSelectEl.value = String(index);
+  suppressLevelTestJump = false;
 }
 
 function jumpToLevelForTest(index) {
@@ -1812,6 +1820,7 @@ function startGame() {
 }
 
 function loadLevel(index) {
+  colorUnifySystem.clear();
   return sessionFlow.loadLevel(index);
 }
 
@@ -1880,6 +1889,7 @@ function tick() {
     },
   });
   processPendingPops(dt);
+  colorUnifySystem.update();
   updateHomeBubbles(dt);
   if (state.inHome && wallNow - state.staminaUiSyncAt >= 1000) {
     syncStaminaUi();

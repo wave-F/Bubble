@@ -5,6 +5,12 @@ import {
   levelBoardKey,
   solveLevelAsync,
 } from "./level-editor-solver.js";
+import {
+  DIRECTION_ARROW,
+  mechanismsFromLevel,
+  mechanismsToLevelList,
+  normalizeDirection,
+} from "./systems/mechanism-dye-logic.js";
 
 const COLORS = [
   { id: 0, name: "红", hex: "#ff0037" },
@@ -23,18 +29,23 @@ const HEALTH_URL = "/api/health";
 
 const els = {
   levelTabs: document.getElementById("level-tabs"),
+  btnAddLevel: document.getElementById("btn-add-level"),
   levelName: document.getElementById("level-name"),
   levelId: document.getElementById("level-id"),
   stepLimit: document.getElementById("step-limit"),
   gridSize: document.getElementById("grid-size"),
   difficulty: document.getElementById("difficulty"),
   palette: document.getElementById("palette"),
+  toolTabs: document.getElementById("tool-tabs"),
+  directionTabs: document.getElementById("direction-tabs"),
+  editorHint: document.getElementById("editor-hint"),
   grid: document.getElementById("grid"),
   stats: document.getElementById("stats"),
   exportJson: document.getElementById("export-json"),
   fileInput: document.getElementById("file-input"),
   btnFillSeed: document.getElementById("btn-fill-seed"),
   btnClear: document.getElementById("btn-clear"),
+  btnClearMechanisms: document.getElementById("btn-clear-mechanisms"),
   btnLoadFile: document.getElementById("btn-load-file"),
   btnSave: document.getElementById("btn-save"),
   btnPlaytest: document.getElementById("btn-playtest"),
@@ -46,9 +57,13 @@ const els = {
 
 const state = {
   activeColorId: 1,
+  editorMode: "color",
+  mechanismDirection: "right",
   cells: Array(9).fill(1),
+  mechanisms: new Map(),
   seed: 41113,
   allLevels: [],
+  activeLevelId: null,
   loadedFromFile: false,
   saveApiAvailable: false,
   solutionCache: { key: "", result: null },
@@ -90,6 +105,18 @@ function resizeCells(size, previous = state.cells) {
   state.cells = next;
 }
 
+function resizeMechanisms(size, previous = state.mechanisms, oldSize = Math.round(Math.sqrt(state.cells.length))) {
+  const next = new Map();
+  for (const [index, direction] of previous.entries()) {
+    const oldRow = Math.floor(index / oldSize);
+    const oldCol = index % oldSize;
+    if (oldRow < size && oldCol < size) {
+      next.set(oldRow * size + oldCol, direction);
+    }
+  }
+  state.mechanisms = next;
+}
+
 function buildColorCounts(cells) {
   const map = new Map();
   for (const colorId of cells) {
@@ -104,6 +131,90 @@ function gridLayoutParams(size) {
   if (size <= 3) return { gridCellSize: 1.05, gridBubbleFill: 0.84 };
   if (size === 4) return { gridCellSize: 0.95, gridBubbleFill: 0.82 };
   return { gridCellSize: 0.9, gridBubbleFill: 0.8 };
+}
+
+function nextLevelId() {
+  if (!state.allLevels.length) return 1;
+  return state.allLevels.reduce((max, item) => Math.max(max, Math.floor(item.id ?? 0)), 0) + 1;
+}
+
+function persistCurrentLevel() {
+  const level = buildLevelJson();
+  const previousId = state.activeLevelId;
+
+  if (!state.allLevels.length) {
+    state.allLevels = [level];
+    state.activeLevelId = level.id;
+    return level;
+  }
+
+  if (previousId != null) {
+    const prevIndex = state.allLevels.findIndex((item) => item.id === previousId);
+    if (prevIndex >= 0) {
+      state.allLevels[prevIndex] = level;
+      state.activeLevelId = level.id;
+      return level;
+    }
+  }
+
+  const sameIdIndex = state.allLevels.findIndex((item) => item.id === level.id);
+  if (sameIdIndex >= 0) {
+    state.allLevels[sameIdIndex] = level;
+  } else {
+    state.allLevels.push(level);
+  }
+  state.activeLevelId = level.id;
+  return level;
+}
+
+function switchToLevel(level) {
+  if (!level) return;
+  persistCurrentLevel();
+  invalidateSolutionCache();
+  state.activeLevelId = level.id;
+  levelToEditor(level);
+  renderGrid();
+  updateStats();
+  renderToolTabs();
+  renderLevelTabs();
+  exportPreview();
+}
+
+function createBlankLevel(id) {
+  const size = 3;
+  const colorId = state.activeColorId;
+  const cells = Array(size * size).fill(colorId);
+  const layout = gridLayoutParams(size);
+
+  return {
+    id,
+    name: `染色-${String(id).padStart(2, "0")}`,
+    difficulty: "easy",
+    homeBubbleColorId: colorId,
+    gridSize: size,
+    ...layout,
+    gridVerticalAlign: "center",
+    gridVerticalOffset: 0.2,
+    seed: 40000 + id * 137,
+    fruitCount: size * size,
+    colorIds: [colorId],
+    colorCounts: [{ colorId, count: size * size }],
+    cells,
+    mechanisms: [],
+    stepLimit: 8,
+  };
+}
+
+function addNewLevel() {
+  persistCurrentLevel();
+  invalidateSolutionCache();
+
+  const id = nextLevelId();
+  const level = createBlankLevel(id);
+  state.allLevels.push(level);
+  state.allLevels.sort((a, b) => a.id - b.id);
+  state.editorMode = "color";
+  switchToLevel(level);
 }
 
 function levelToEditor(level) {
@@ -122,11 +233,13 @@ function levelToEditor(level) {
   }
 
   state.seed = Math.floor(level.seed ?? 41113);
+  state.mechanisms = mechanismsFromLevel(level, size);
   els.levelName.value = level.name ?? `染色-${String(level.id ?? 1).padStart(2, "0")}`;
   els.levelId.value = String(level.id ?? 1);
   els.stepLimit.value = String(level.stepLimit ?? 8);
   els.gridSize.value = String(size);
   els.difficulty.value = level.difficulty ?? "easy";
+  state.activeLevelId = Math.floor(level.id ?? 1);
 }
 
 function buildLevelJson() {
@@ -150,8 +263,54 @@ function buildLevelJson() {
     colorIds,
     colorCounts,
     cells,
+    mechanisms: mechanismsToLevelList(state.mechanisms),
     stepLimit: Math.max(1, Math.floor(Number(els.stepLimit.value) || 1)),
   };
+}
+
+function renderToolTabs() {
+  const isMechanism = state.editorMode === "mechanism";
+  els.palette.classList.toggle("hidden", isMechanism);
+  els.directionTabs.classList.toggle("hidden", !isMechanism);
+  els.btnClearMechanisms.disabled = state.mechanisms.size === 0;
+
+  for (const btn of els.toolTabs.querySelectorAll("button")) {
+    btn.classList.toggle("active", btn.dataset.tool === state.editorMode);
+  }
+  for (const btn of els.directionTabs.querySelectorAll("button")) {
+    btn.classList.toggle("active", btn.dataset.direction === state.mechanismDirection);
+  }
+
+  if (els.editorHint) {
+    els.editorHint.innerHTML = isMechanism
+      ? `<strong>机制泡泡模式</strong>：先选方向，再单击格子加箭头。右键单击可删除该格箭头。`
+      : `<strong>涂色模式</strong>：选择颜色后单击格子涂色。已有箭头的格子会保留机制设置。`;
+  }
+}
+
+function formatMechanismSummary(size) {
+  if (!state.mechanisms.size) return "机制泡泡：无";
+  const parts = mechanismsToLevelList(state.mechanisms).map((item) => {
+    const col = item.index % size;
+    const row = Math.floor(item.index / size);
+    return `(${col},${row})${DIRECTION_ARROW[item.direction]}`;
+  });
+  return `机制泡泡：${parts.join(" · ")}`;
+}
+
+function applyCellEdit(index, { removeMechanism = false } = {}) {
+  invalidateSolutionCache();
+  if (state.editorMode === "mechanism") {
+    if (removeMechanism) {
+      state.mechanisms.delete(index);
+    } else {
+      state.mechanisms.set(index, state.mechanismDirection);
+    }
+  } else {
+    state.cells[index] = state.activeColorId;
+  }
+  renderGrid();
+  updateStats();
 }
 
 function renderPalette() {
@@ -178,18 +337,30 @@ function renderGrid() {
   for (let i = 0; i < size * size; i += 1) {
     const colorId = state.cells[i] ?? state.activeColorId;
     const color = COLORS[colorId] ?? COLORS[0];
+    const mechanismDir = state.mechanisms.get(i) ?? null;
     const cell = document.createElement("button");
     cell.type = "button";
-    cell.className = "cell";
+    cell.className = `cell${mechanismDir ? " mechanism" : ""}`;
     cell.style.background = `radial-gradient(circle at 30% 28%, rgba(255,255,255,0.55), transparent 42%), ${color.hex}`;
-    cell.title = `(${i % size}, ${Math.floor(i / size)}) = ${color.name}`;
+    cell.title = mechanismDir
+      ? `(${i % size}, ${Math.floor(i / size)}) ${color.name} · 机制${DIRECTION_ARROW[mechanismDir]}`
+      : `(${i % size}, ${Math.floor(i / size)}) = ${color.name}`;
     cell.addEventListener("pointerdown", (ev) => {
+      if (ev.button !== 0) return;
       ev.preventDefault();
-      invalidateSolutionCache();
-      state.cells[i] = state.activeColorId;
-      renderGrid();
-      updateStats();
+      applyCellEdit(i);
     });
+    cell.addEventListener("contextmenu", (ev) => {
+      if (!state.mechanisms.has(i)) return;
+      ev.preventDefault();
+      applyCellEdit(i, { removeMechanism: true });
+    });
+    if (mechanismDir) {
+      const arrow = document.createElement("span");
+      arrow.className = "cell-arrow";
+      arrow.textContent = DIRECTION_ARROW[mechanismDir] ?? "•";
+      cell.appendChild(arrow);
+    }
     els.grid.appendChild(cell);
   }
 }
@@ -243,9 +414,11 @@ function updateStats(extraLine = "") {
     return `${color?.name ?? item.colorId}×${item.count}`;
   }).join(" · ");
 
-  const lines = [`颜色分布：${text || "无"}`];
+  const size = gridSize();
+  const lines = [`颜色分布：${text || "无"}`, formatMechanismSummary(size)];
   if (extraLine) lines.push(extraLine);
   els.stats.textContent = lines.join("\n");
+  renderToolTabs();
 }
 
 function solvingStatusText(level) {
@@ -282,19 +455,17 @@ function renderLevelTabs() {
   els.levelTabs.innerHTML = "";
   if (!state.allLevels.length) return;
 
-  state.allLevels.forEach((level, index) => {
+  for (const level of state.allLevels) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = `L${level.id}`;
+    btn.classList.toggle("active", level.id === state.activeLevelId);
     btn.addEventListener("click", () => {
-      levelToEditor(level);
-      renderGrid();
-      updateStats();
-      for (const child of els.levelTabs.children) child.classList.remove("active");
-      btn.classList.add("active");
+      if (level.id === state.activeLevelId) return;
+      switchToLevel(level);
     });
     els.levelTabs.appendChild(btn);
-  });
+  }
 }
 
 function fillFromSeed() {
@@ -313,17 +484,7 @@ function fillFromSeed() {
 }
 
 function syncCurrentLevelToAllLevels() {
-  const level = buildLevelJson();
-  if (!state.allLevels.length) {
-    state.allLevels = [level];
-    return level;
-  }
-
-  const nextLevels = state.allLevels.map((item) => (
-    item.id === level.id ? level : item
-  ));
-  const hasCurrent = nextLevels.some((item) => item.id === level.id);
-  state.allLevels = hasCurrent ? nextLevels : [...nextLevels, level];
+  const level = persistCurrentLevel();
   state.loadedFromFile = false;
   return level;
 }
@@ -409,18 +570,42 @@ async function loadLevelsFromUrl(url = DEFAULT_LEVELS_URL) {
   const data = await res.json();
   state.allLevels = Array.isArray(data.levels) ? data.levels : [];
   state.loadedFromFile = false;
-  if (state.allLevels.length) levelToEditor(state.allLevels[0]);
+  if (state.allLevels.length) {
+    state.activeLevelId = state.allLevels[0].id;
+    levelToEditor(state.allLevels[0]);
+  }
   renderLevelTabs();
   renderGrid();
   updateStats();
 }
 
 function bindEvents() {
+  els.btnAddLevel.addEventListener("click", addNewLevel);
+
   els.gridSize.addEventListener("change", () => {
     invalidateSolutionCache();
-    resizeCells(gridSize());
+    const size = gridSize();
+    const oldSize = Math.round(Math.sqrt(state.cells.length));
+    const previousMechanisms = new Map(state.mechanisms);
+    resizeCells(size);
+    resizeMechanisms(size, previousMechanisms, oldSize);
     renderGrid();
     updateStats();
+  });
+
+  els.toolTabs.addEventListener("click", (ev) => {
+    const tool = ev.target.closest("button")?.dataset?.tool;
+    if (!tool || tool === state.editorMode) return;
+    state.editorMode = tool;
+    renderToolTabs();
+  });
+
+  els.directionTabs.addEventListener("click", (ev) => {
+    const direction = normalizeDirection(ev.target.closest("button")?.dataset?.direction);
+    if (!direction || direction === state.mechanismDirection) return;
+    state.mechanismDirection = direction;
+    renderToolTabs();
+    renderGrid();
   });
 
   els.btnFillSeed.addEventListener("click", () => {
@@ -430,9 +615,21 @@ function bindEvents() {
 
   els.btnClear.addEventListener("click", () => {
     const size = gridSize();
+    invalidateSolutionCache();
     state.cells = Array(size * size).fill(state.activeColorId);
+    state.mechanisms = new Map();
     renderGrid();
     updateStats();
+    exportPreview();
+  });
+
+  els.btnClearMechanisms.addEventListener("click", () => {
+    if (!state.mechanisms.size) return;
+    invalidateSolutionCache();
+    state.mechanisms = new Map();
+    renderGrid();
+    updateStats();
+    exportPreview();
   });
 
   els.btnLoadFile.addEventListener("click", () => els.fileInput.click());
@@ -444,7 +641,10 @@ function bindEvents() {
     const data = JSON.parse(text);
     state.allLevels = Array.isArray(data.levels) ? data.levels : [];
     state.loadedFromFile = true;
-    if (state.allLevels.length) levelToEditor(state.allLevels[0]);
+    if (state.allLevels.length) {
+      state.activeLevelId = state.allLevels[0].id;
+      levelToEditor(state.allLevels[0]);
+    }
     renderLevelTabs();
     renderGrid();
     updateStats();
@@ -497,6 +697,7 @@ const playtest = createLevelEditorPlaytest({
 
 async function init() {
   renderPalette();
+  renderToolTabs();
   bindEvents();
   state.saveApiAvailable = await probeSaveApi();
   if (!state.saveApiAvailable) {

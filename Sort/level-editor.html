@@ -16,6 +16,8 @@
 
       * { box-sizing: border-box; }
 
+      .hidden { display: none !important; }
+
       body {
         margin: 0;
         min-height: 100vh;
@@ -135,6 +137,77 @@
 
       .cell:hover { transform: scale(1.04); }
 
+      .cell {
+        position: relative;
+      }
+
+      .cell.mechanism {
+        box-shadow:
+          inset 0 -4px 10px rgba(0, 0, 0, 0.08),
+          0 4px 10px rgba(35, 60, 90, 0.12),
+          0 0 0 3px rgba(47, 140, 255, 0.45);
+      }
+
+      .cell-arrow {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-size: 22px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.95);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+        pointer-events: none;
+      }
+
+      .tool-tabs,
+      .direction-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .tool-tabs button.active,
+      .direction-tabs button.active {
+        background: #e8f3ff;
+        border-color: #9ec7ff;
+        color: #1d5fbf;
+      }
+
+      .direction-tabs button {
+        min-width: 54px;
+        font-weight: 600;
+      }
+
+      .editor-hint {
+        margin: 0 0 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #f3f8ff;
+        border: 1px solid rgba(47, 140, 255, 0.18);
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+
+      .editor-hint strong {
+        color: #1d5fbf;
+        font-weight: 600;
+      }
+
+      .playtest-mechanism-arrow {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-size: 22px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.95);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+        pointer-events: none;
+      }
+
       .actions {
         display: flex;
         flex-wrap: wrap;
@@ -195,17 +268,32 @@
         line-height: 1.45;
       }
 
+      .level-tabs-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
       .level-tabs {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
-        margin-bottom: 10px;
+        flex: 1;
       }
 
       .level-tabs button.active {
         background: #e8f3ff;
         border-color: #9ec7ff;
         color: #1d5fbf;
+      }
+
+      #btn-add-level {
+        white-space: nowrap;
+        color: #1d5fbf;
+        border-color: #9ec7ff;
+        background: #f7fbff;
       }
 
       body.playtest-open { overflow: hidden; }
@@ -365,12 +453,15 @@
   <body>
     <div class="wrap">
       <h1>染色关卡编辑器</h1>
-      <p class="sub">点击格子涂抹颜色，导出带 <code>cells</code> 的固定布局。游戏会优先使用 <code>cells</code>，不再依赖 seed 洗牌。</p>
+      <p class="sub">先用「涂色」单击格子画颜色，再切到「机制泡泡」单击加箭头。导出 JSON 会包含 <code>cells</code> 和 <code>mechanisms</code>。</p>
 
       <div class="layout">
         <section class="panel">
           <h2>关卡参数</h2>
-          <div class="level-tabs" id="level-tabs"></div>
+          <div class="level-tabs-row">
+            <div class="level-tabs" id="level-tabs"></div>
+            <button id="btn-add-level" type="button">+ 新建关卡</button>
+          </div>
           <div class="field">
             <label for="level-name">名称</label>
             <input id="level-name" type="text" value="染色-01" />
@@ -404,12 +495,24 @@
             </div>
           </div>
 
-          <h2>画笔</h2>
+          <h2>编辑工具</h2>
+          <div class="tool-tabs" id="tool-tabs">
+            <button type="button" class="active" data-tool="color">涂色</button>
+            <button type="button" data-tool="mechanism">机制泡泡</button>
+          </div>
+          <p class="editor-hint" id="editor-hint"></p>
           <div class="palette" id="palette"></div>
+          <div class="direction-tabs hidden" id="direction-tabs">
+            <button type="button" data-direction="up">↑ 上</button>
+            <button type="button" data-direction="down">↓ 下</button>
+            <button type="button" data-direction="left">← 左</button>
+            <button type="button" class="active" data-direction="right">→ 右</button>
+          </div>
 
           <div class="actions">
             <button id="btn-fill-seed" type="button">用 seed 填充</button>
-            <button id="btn-clear" type="button">清空</button>
+            <button id="btn-clear" type="button">清空棋盘</button>
+            <button id="btn-clear-mechanisms" type="button">清除箭头</button>
             <button id="btn-load-file" type="button">导入 JSON</button>
           </div>
           <input id="file-input" type="file" accept="application/json,.json" hidden />

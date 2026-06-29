@@ -9,6 +9,7 @@ import {
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { buildBubblePressNodes } from "./materials/bubble-press-nodes.js";
 import { applyBubbleSceneEnvironment } from "./content/bubble-environment.js";
+import { createMechanismArrow } from "./entities/mechanism-arrow-visual.js";
 
 const compatEl = document.getElementById("compat");
 const swatches = Array.from(document.querySelectorAll(".swatch"));
@@ -40,6 +41,8 @@ const defaults = {
   toggleEdge: true,
   toggleIri: true,
   toggleBomb: false,
+  toggleMechanismArrow: true,
+  mechanismDirection: "right",
   pressFillRate: 2.86,
   pressSpringMax: 0.55,
   pressContactStrength: 0.72,
@@ -92,6 +95,9 @@ let springVel = 0;
 let tension = defaults.springTension;
 let damping = defaults.springDamping;
 let bombModeEnabled = defaults.toggleBomb;
+let mechanismArrowEnabled = defaults.toggleMechanismArrow;
+let mechanismDirection = defaults.mechanismDirection;
+let mechanismArrowGroup = null;
 let isPressing = false;
 let pressAmount = 0;
 let pressFillRate = defaults.pressFillRate;
@@ -253,6 +259,18 @@ bombGroup.add(bombSpark);
 bombGroup.add(bombRing);
 bombGroup.visible = false;
 bubble.add(bombGroup);
+
+function mountMechanismArrow(direction) {
+  if (mechanismArrowGroup) {
+    bubble.remove(mechanismArrowGroup);
+    mechanismArrowGroup = null;
+  }
+  mechanismArrowGroup = createMechanismArrow(direction, bubbleBaseRadius);
+  mechanismArrowGroup.visible = mechanismArrowEnabled;
+  bubble.add(mechanismArrowGroup);
+}
+
+mountMechanismArrow(mechanismDirection);
 
 const BubbleState = {
   IDLE: "IDLE",
@@ -530,6 +548,20 @@ bindToggle("t-bomb", (checked) => {
   bombModeEnabled = checked;
   updateBombVisualState(clock.elapsedTime);
 });
+bindToggle("t-mechanism-arrow", (checked) => {
+  mechanismArrowEnabled = checked;
+  updateMechanismArrowVisual();
+});
+for (const btn of document.querySelectorAll("[data-mechanism-direction]")) {
+  btn.addEventListener("click", () => {
+    const direction = btn.dataset.mechanismDirection;
+    if (!direction || direction === mechanismDirection) return;
+    mechanismDirection = direction;
+    mountMechanismArrow(mechanismDirection);
+    syncMechanismDirectionButtons();
+    updateMechanismArrowVisual();
+  });
+}
 
 document.getElementById("reset-btn").addEventListener("click", () => {
   setControlValue("p-transmission", defaults.transmission);
@@ -559,6 +591,10 @@ document.getElementById("reset-btn").addEventListener("click", () => {
   setToggleValue("t-edge", defaults.toggleEdge);
   setToggleValue("t-iri", defaults.toggleIri);
   setToggleValue("t-bomb", defaults.toggleBomb);
+  setToggleValue("t-mechanism-arrow", defaults.toggleMechanismArrow);
+  mechanismDirection = defaults.mechanismDirection;
+  mountMechanismArrow(mechanismDirection);
+  syncMechanismDirectionButtons();
 
   material.transmission = defaults.transmission;
   material.roughness = defaults.roughness;
@@ -577,6 +613,7 @@ document.getElementById("reset-btn").addEventListener("click", () => {
   edgeEnabledUniform.value = defaults.toggleEdge ? 1 : 0;
   iridescenceEnabledUniform.value = defaults.toggleIri ? 1 : 0;
   bombModeEnabled = defaults.toggleBomb;
+  mechanismArrowEnabled = defaults.toggleMechanismArrow;
   pressFillRate = defaults.pressFillRate;
   pressSpringMax = defaults.pressSpringMax;
   pressContactStrength = defaults.pressContactStrength;
@@ -604,7 +641,21 @@ document.getElementById("reset-btn").addEventListener("click", () => {
   material.opacity = 0.95;
   setPopProgressUI(0);
   updateBombVisualState(clock.elapsedTime);
+  updateMechanismArrowVisual();
 });
+
+function syncMechanismDirectionButtons() {
+  for (const btn of document.querySelectorAll("[data-mechanism-direction]")) {
+    btn.classList.toggle("active", btn.dataset.mechanismDirection === mechanismDirection);
+  }
+}
+
+function updateMechanismArrowVisual() {
+  if (!mechanismArrowGroup) return;
+  const bubbleAlive = bubble.visible && bubbleState !== BubbleState.DISSIPATE;
+  const visible = mechanismArrowEnabled && bubbleAlive;
+  mechanismArrowGroup.visible = visible;
+}
 
 function isBubblePressBlockedTarget(target) {
   if (!target) return true;
@@ -1123,6 +1174,7 @@ async function bootstrap() {
 
     updatePopState(dt);
     updateBombVisualState(elapsed);
+    updateMechanismArrowVisual();
 
     controls.update();
     renderer.render(scene, camera);

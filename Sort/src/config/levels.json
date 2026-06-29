@@ -38,6 +38,7 @@
         3,
         1
       ],
+      "mechanisms": [],
       "stepLimit": 3
     },
     {
@@ -123,6 +124,7 @@
         1,
         1
       ],
+      "mechanisms": [],
       "stepLimit": 3
     },
     {
@@ -226,6 +228,62 @@
         1
       ],
       "stepLimit": 5
+    },
+    {
+      "id": 6,
+      "name": "机制-01",
+      "difficulty": "easy",
+      "homeBubbleColorId": 1,
+      "gridSize": 4,
+      "gridCellSize": 0.95,
+      "gridBubbleFill": 0.82,
+      "gridVerticalAlign": "center",
+      "gridVerticalOffset": 0.2,
+      "seed": 42001,
+      "fruitCount": 16,
+      "colorIds": [
+        1,
+        3
+      ],
+      "colorCounts": [
+        {
+          "colorId": 1,
+          "count": 6
+        },
+        {
+          "colorId": 3,
+          "count": 10
+        }
+      ],
+      "cells": [
+        3,
+        1,
+        3,
+        1,
+        1,
+        3,
+        3,
+        3,
+        3,
+        1,
+        3,
+        1,
+        1,
+        3,
+        3,
+        3
+      ],
+      "mechanisms": [
+        {
+          "index": 5,
+          "direction": "right"
+        },
+        {
+          "index": 13,
+          "direction": "right"
+        }
+      ],
+      "stepLimit": 4
     }
   ]
 }

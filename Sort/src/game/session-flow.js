@@ -60,6 +60,7 @@ export function createSessionFlowController({
         motionMode: "grid",
         gridCol: def.col ?? -1,
         gridRow: def.row ?? -1,
+        mechanismDirection: def.mechanismDirection ?? null,
       });
       const spawnMargin = fruit.radius + 0.06;
       fruit.setPosition(

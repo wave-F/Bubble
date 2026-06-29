@@ -1,4 +1,5 @@
 import { applyPop, boardFromLevel, isBoardUnified } from "./level-editor-solver.js";
+import { DIRECTION_ARROW, mechanismsFromLevel } from "./systems/mechanism-dye-logic.js";
 
 export function createLevelEditorPlaytest({
   colors,
@@ -27,6 +28,7 @@ export function createLevelEditorPlaytest({
     size: 3,
     initialBoard: [],
     board: [],
+    mechanisms: new Map(),
     stepsUsed: 0,
     stepLimit: 1,
     ended: false,
@@ -122,7 +124,9 @@ export function createLevelEditorPlaytest({
       return;
     }
 
-    statusEl.textContent = "点击泡泡捏碎：自己消失，四邻染成源色";
+    statusEl.textContent = playState.mechanisms.size
+      ? "捏碎泡泡：四邻染色；机制泡泡被染色后会沿箭头方向传播"
+      : "点击泡泡捏碎：自己消失，四邻染成源色";
     statusEl.dataset.state = "playing";
   }
 
@@ -154,6 +158,8 @@ export function createLevelEditorPlaytest({
         cell.type = "button";
         cell.className = "playtest-cell";
 
+        const mechanismDir = playState.mechanisms.get(idx) ?? null;
+
         if (colorId < 0) {
           cell.classList.add("empty");
           cell.disabled = true;
@@ -161,12 +167,21 @@ export function createLevelEditorPlaytest({
         } else {
           const hex = colorHex(colorId);
           cell.style.background = `radial-gradient(circle at 30% 28%, rgba(255,255,255,0.55), transparent 42%), ${hex}`;
-          cell.title = `(${col}, ${row}) ${colorName(colorId)}`;
+          cell.title = mechanismDir
+            ? `(${col}, ${row}) ${colorName(colorId)} · 机制${DIRECTION_ARROW[mechanismDir]}`
+            : `(${col}, ${row}) ${colorName(colorId)}`;
           if (!playState.preview.active && !playState.ended) {
             cell.addEventListener("click", () => onCellClick(row, col));
           } else {
             cell.disabled = true;
           }
+        }
+
+        if (mechanismDir) {
+          const arrow = document.createElement("span");
+          arrow.className = "playtest-mechanism-arrow";
+          arrow.textContent = DIRECTION_ARROW[mechanismDir] ?? "•";
+          cell.appendChild(arrow);
         }
 
         const badge = moveBadgeForCell(row, col);
@@ -189,7 +204,7 @@ export function createLevelEditorPlaytest({
   function onCellClick(row, col) {
     if (playState.ended || playState.preview.active) return;
 
-    const next = applyPop(playState.board, playState.size, row, col);
+    const next = applyPop(playState.board, playState.size, row, col, playState.mechanisms);
     if (!next) return;
 
     playState.board = next;
@@ -221,7 +236,7 @@ export function createLevelEditorPlaytest({
     const move = playState.solution.moves[playState.preview.moveIndex];
     if (!move) return false;
 
-    const next = applyPop(playState.board, playState.size, move.row, move.col);
+    const next = applyPop(playState.board, playState.size, move.row, move.col, playState.mechanisms);
     if (!next) return false;
 
     playState.board = next;
@@ -274,6 +289,7 @@ export function createLevelEditorPlaytest({
     const { size, board } = boardFromLevel(level);
 
     playState.size = size;
+    playState.mechanisms = mechanismsFromLevel(level, size);
     playState.initialBoard = board.slice();
     playState.board = board.slice();
     playState.stepsUsed = 0;

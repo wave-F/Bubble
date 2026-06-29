@@ -157,6 +157,31 @@
         accent-color: #2f5f88;
       }
 
+      .mechanism-direction-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 8px 0 4px;
+      }
+
+      .mechanism-direction-tabs button {
+        min-width: 48px;
+        border: 1px solid rgba(94, 122, 148, 0.28);
+        border-radius: 8px;
+        padding: 6px 8px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #3e556c;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .mechanism-direction-tabs button.active {
+        background: #e8f3ff;
+        border-color: #9ec7ff;
+        color: #1d5fbf;
+      }
+
       #pop-btn,
       #reset-btn,
       #sync-btn,
@@ -332,6 +357,16 @@
         <label for="t-bomb">炸弹泡泡模式</label>
         <input id="t-bomb" type="checkbox" />
       </div>
+      <div class="toggle-row">
+        <label for="t-mechanism-arrow">机制箭头泡泡</label>
+        <input id="t-mechanism-arrow" type="checkbox" checked />
+      </div>
+      <div class="mechanism-direction-tabs" aria-label="箭头方向">
+        <button type="button" data-mechanism-direction="up" title="向上">↑</button>
+        <button type="button" data-mechanism-direction="right" title="向右" class="active">→</button>
+        <button type="button" data-mechanism-direction="down" title="向下">↓</button>
+        <button type="button" data-mechanism-direction="left" title="向左">←</button>
+      </div>
 
       <button id="pop-btn" type="button">播放爆炸动画</button>
       <button id="reset-btn" type="button">恢复默认参数</button>
@@ -339,6 +374,6 @@
       <button id="back-btn" type="button">返回主游戏</button>
     </div>
 
-    <script type="module" src="./src/bubble-debug.js?v=20260626-press-pbr"></script>
+    <script type="module" src="./src/bubble-debug.js?v=20260629-3d-arrow"></script>
   </body>
 </html>

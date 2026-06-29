@@ -6,6 +6,7 @@ import {
   uniform,
 } from "three/tsl";
 import { buildBubblePressNodes } from "../materials/bubble-press-nodes.js";
+import { createMechanismArrow } from "./mechanism-arrow-visual.js";
 
 const BubbleBurstState = {
   IDLE: "IDLE",
@@ -140,6 +141,7 @@ export function createBubbleEntityClass({
       motionMode = "float",
       gridCol = -1,
       gridRow = -1,
+      mechanismDirection = null,
     }) {
       this.id = id;
       this.colorId = colorId;
@@ -173,6 +175,7 @@ export function createBubbleEntityClass({
       this.motionMode = motionMode;
       this.gridCol = gridCol;
       this.gridRow = gridRow;
+      this.mechanismDirection = mechanismDirection;
       this.idlePhase = Math.random() * Math.PI * 2;
       this.idleFrequency = 1.5 + Math.random() * 1.6;
       this.idleAmplitude = 0.75 + Math.random() * 0.45;
@@ -208,6 +211,9 @@ export function createBubbleEntityClass({
       this.bubble.scale.setScalar(this.baseScale);
       this.bubble.userData.fruit = this;
       this.selectRing = this.createSelectRing();
+      this.mechanismArrow = mechanismDirection
+        ? createMechanismArrow(mechanismDirection, bubbleBaseRadius)
+        : null;
 
       this.burstState = BubbleBurstState.IDLE;
       this.stateElapsed = 0;
@@ -225,6 +231,7 @@ export function createBubbleEntityClass({
       this.activeBurstBubbleCount = 0;
 
       this.group.add(this.bubble, this.selectRing);
+      if (this.mechanismArrow) this.bubble.add(this.mechanismArrow);
       this.resetBurstArtifacts();
       this.setBaseColor(this.baseColor);
     }

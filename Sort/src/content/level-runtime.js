@@ -1,4 +1,8 @@
 import * as THREE from "three/webgpu";
+import {
+  mechanismsFromLevel,
+  mechanismsToLevelList,
+} from "../systems/mechanism-dye-logic.js";
 
 function shuffleInPlace(arr, rng) {
   for (let i = arr.length - 1; i > 0; i -= 1) {
@@ -132,6 +136,7 @@ export function createLevelRuntime({
     gridSize,
     colorCounts,
     cells,
+    mechanisms,
     cellSize,
     bubbleFill = 0.84,
     verticalAlign = "center",
@@ -164,6 +169,7 @@ export function createLevelRuntime({
           col,
           row,
           colorId: colorBag[index],
+          mechanismDirection: mechanisms?.get(index) ?? null,
           radius,
           vx: 0,
           vy: 0,
@@ -195,12 +201,15 @@ export function createLevelRuntime({
     const seed = Math.floor(level.seed ?? 1000 + (level.id ?? index + 1) * 137);
     const stepLimit = Math.max(1, Math.floor(level.stepLimit ?? 8));
     const cells = normalizeCells(level.cells, gridSize);
+    const mechanismMap = mechanismsFromLevel(level, gridSize);
+    const mechanisms = mechanismsToLevelList(mechanismMap);
 
     const gridPack = generateGridFruits({
       seed,
       gridSize,
       colorCounts,
       cells,
+      mechanisms: mechanismMap,
       cellSize: gridCellSize,
       bubbleFill: gridBubbleFill,
       verticalAlign: gridVerticalAlign,
@@ -222,6 +231,7 @@ export function createLevelRuntime({
       colorIds,
       colorCounts,
       cells,
+      mechanisms,
       stepLimit,
       fruits: gridPack.fruitsDef,
     };
@@ -244,10 +254,14 @@ export function createLevelRuntime({
         : undefined,
       colorIds: level.colorIds.map((id) => id),
       colorCounts: level.colorCounts.map((item) => ({ colorId: item.colorId, count: item.count })),
+      mechanisms: Array.isArray(level.mechanisms)
+        ? level.mechanisms.map((item) => ({ index: item.index, direction: item.direction }))
+        : [],
       fruits: level.fruits.map((fruit) => ({
         x: fruit.x,
         y: fruit.y,
         colorId: fruit.colorId,
+        mechanismDirection: fruit.mechanismDirection ?? null,
         radius: fruit.radius,
         vx: fruit.vx,
         vy: fruit.vy,
@@ -263,7 +277,10 @@ export function createLevelRuntime({
     if (!baseLevel) return null;
 
     const cellsKey = Array.isArray(baseLevel.cells) ? baseLevel.cells.join(",") : `seed:${baseLevel.seed}`;
-    const key = `${index}|${baseLevel.gridSize}|${cellsKey}|${bounds.left.toFixed(3)}|${bounds.right.toFixed(3)}|${bounds.top.toFixed(3)}|${bounds.bottom.toFixed(3)}`;
+    const mechKey = Array.isArray(baseLevel.mechanisms)
+      ? baseLevel.mechanisms.map((item) => `${item.index}:${item.direction}`).join(";")
+      : "";
+    const key = `${index}|${baseLevel.gridSize}|${cellsKey}|${mechKey}|${bounds.left.toFixed(3)}|${bounds.right.toFixed(3)}|${bounds.top.toFixed(3)}|${bounds.bottom.toFixed(3)}`;
     const cached = cache.get(key);
     if (cached) return cloneNormalizedLevel(cached);
 

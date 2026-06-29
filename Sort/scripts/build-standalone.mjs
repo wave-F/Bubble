@@ -227,9 +227,8 @@ const html = `<!doctype html>
       <button id="level-test-add-coins" class="tool-btn" type="button">Test +50 Coins</button>
       <button id="level-test-toggle" class="tool-btn" type="button">Level Test</button>
       <div id="level-test-panel" class="hidden">
-        <label for="level-test-select">选择关卡</label>
+        <label for="level-test-select">选择关卡（即切换）</label>
         <select id="level-test-select"></select>
-        <button id="level-test-jump" class="tool-btn" type="button">切换到该关</button>
       </div>
     </div>
 
