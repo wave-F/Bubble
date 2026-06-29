@@ -1,0 +1,14 @@
+.DS_Store
+*.log
+
+# Dependencies & build output
+node_modules/
+dist/
+coverage/
+
+# iOS / Capacitor build artifacts
+**/DerivedData/
+**/xcuserdata/
+**/App/build/
+**/App/Pods/
+**/App/output/
