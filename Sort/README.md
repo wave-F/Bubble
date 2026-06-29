@@ -33,6 +33,6 @@ npm run cap:sync:ios     # 构建并同步到 iOS
 
 ## 开发地址
 
-- 游戏：`/`
-- 关卡编辑器：`/tools/level-editor/`（兼容 `/level-editor.html`）
-- 材质调试：`/tools/bubble-debug/`（兼容 `/bubble-debug.html`）
+- 游戏：`http://localhost:4173/`
+- 关卡编辑器：`http://localhost:4173/tools/level-editor/`
+- 材质调试：`http://localhost:4173/tools/bubble-debug/`
