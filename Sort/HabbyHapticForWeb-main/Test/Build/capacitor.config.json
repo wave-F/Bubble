@@ -1,8 +1,0 @@
-{
-  "appId": "com.test.haptictest",
-  "appName": "HapticTest",
-  "webDir": "www",
-  "server": {
-    "androidScheme": "https"
-  }
-}

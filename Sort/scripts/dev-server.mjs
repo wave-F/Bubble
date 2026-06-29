@@ -8,6 +8,11 @@ const ROOT = path.resolve(__dirname, "..");
 const LEVELS_PATH = path.join(ROOT, "src/config/levels.json");
 const PORT = Number(process.env.PORT) || 4173;
 
+const PATH_ALIASES = {
+  "/level-editor.html": "/tools/level-editor/index.html",
+  "/bubble-debug.html": "/tools/bubble-debug/index.html",
+};
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -69,6 +74,7 @@ async function serveStatic(req, res) {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === "/") pathname = "/index.html";
+  if (PATH_ALIASES[pathname]) pathname = PATH_ALIASES[pathname];
 
   const filePath = path.resolve(ROOT, `.${pathname}`);
   if (!filePath.startsWith(ROOT)) {
@@ -122,6 +128,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Dev server: http://localhost:${PORT}/`);
-  console.log(`Level editor: http://localhost:${PORT}/level-editor.html`);
+  console.log(`Level editor: http://localhost:${PORT}/tools/level-editor/`);
+  console.log(`Bubble debug: http://localhost:${PORT}/tools/bubble-debug/`);
   console.log(`Save API: POST /api/levels/save -> src/config/levels.json`);
 });

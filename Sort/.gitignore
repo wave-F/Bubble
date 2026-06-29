@@ -3,3 +3,8 @@ node_modules/
 *.log
 dist/
 coverage/
+
+# Generated build outputs
+www/
+release/
+standalone.html

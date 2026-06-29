@@ -23,7 +23,7 @@ const COLORS = [
   { id: 7, name: "青", hex: "#00d4c1" },
 ];
 
-const DEFAULT_LEVELS_URL = "./src/config/levels.json";
+const DEFAULT_LEVELS_URL = "/src/config/levels.json";
 const SAVE_LEVELS_URL = "/api/levels/save";
 const HEALTH_URL = "/api/health";
 

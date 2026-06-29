@@ -12,7 +12,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.3.0"),
-        .package(name: "CapacitorHapticPlugin", path: "../../../HabbyHapticForWeb-main/HapticForWeb/capacitor-haptic-plugin")
+        .package(name: "CapacitorHapticPlugin", path: "../../../vendor/haptic/capacitor-haptic-plugin")
     ],
     targets: [
         .target(

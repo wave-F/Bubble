@@ -355,7 +355,7 @@ controlsPanel.addEventListener("pointerdown", (event) => {
 });
 
 backBtn.addEventListener("click", () => {
-  window.location.href = "./index.html";
+  window.location.href = "/";
 });
 
 popBtn.addEventListener("click", (event) => {
