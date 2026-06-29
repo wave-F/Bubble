@@ -226,6 +226,93 @@
         1
       ],
       "stepLimit": 5
+    },
+    {
+      "id": 6,
+      "name": "分拣-01",
+      "difficulty": "easy",
+      "homeBubbleColorId": 0,
+      "gridSize": 4,
+      "gridCellSize": 0.95,
+      "gridBubbleFill": 0.82,
+      "gridVerticalAlign": "center",
+      "gridVerticalOffset": 0.2,
+      "seed": 61001,
+      "fruitCount": 16,
+      "winMode": "retain",
+      "retainTargets": [
+        { "colorId": 3, "count": 2 },
+        { "colorId": 0, "count": 1 }
+      ],
+      "colorIds": [0, 3],
+      "colorCounts": [
+        { "colorId": 0, "count": 8 },
+        { "colorId": 3, "count": 8 }
+      ],
+      "cells": [
+        3, 0, 3, 0,
+        0, 3, 0, 3,
+        3, 0, 3, 0,
+        0, 3, 0, 3
+      ],
+      "stepLimit": 14
+    },
+    {
+      "id": 7,
+      "name": "分拣-02",
+      "difficulty": "easy",
+      "homeBubbleColorId": 3,
+      "gridSize": 4,
+      "gridCellSize": 0.95,
+      "gridBubbleFill": 0.82,
+      "gridVerticalAlign": "center",
+      "gridVerticalOffset": 0.2,
+      "seed": 71002,
+      "fruitCount": 16,
+      "winMode": "retain",
+      "retainTargets": [
+        { "colorId": 3, "count": 1 },
+        { "colorId": 0, "count": 1 },
+        { "colorId": 5, "count": 2 }
+      ],
+      "colorIds": [0, 3, 5],
+      "colorCounts": [
+        { "colorId": 0, "count": 6 },
+        { "colorId": 3, "count": 5 },
+        { "colorId": 5, "count": 5 }
+      ],
+      "cells": [
+        3, 0, 5, 5,
+        0, 3, 0, 5,
+        5, 3, 0, 3,
+        0, 5, 3, 0
+      ],
+      "stepLimit": 13
+    },
+    {
+      "id": 8,
+      "name": "分拣-03",
+      "difficulty": "medium",
+      "homeBubbleColorId": 3,
+      "gridSize": 4,
+      "gridCellSize": 0.95,
+      "gridBubbleFill": 0.82,
+      "gridVerticalAlign": "center",
+      "gridVerticalOffset": 0.2,
+      "seed": 81003,
+      "fruitCount": 16,
+      "winMode": "retain",
+      "retainTargets": [
+        { "colorId": 3, "count": 2 },
+        { "colorId": 5, "count": 3 }
+      ],
+      "colorIds": [3, 5],
+      "colorCounts": [
+        { "colorId": 3, "count": 8 },
+        { "colorId": 5, "count": 8 }
+      ],
+      "cells": [3, 5, 3, 5, 5, 3, 5, 3, 3, 5, 3, 5, 5, 3, 5, 3],
+      "stepLimit": 12
     }
   ]
 }

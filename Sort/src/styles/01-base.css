@@ -196,10 +196,19 @@ body {
   left: calc(12px + var(--safe-left));
   z-index: 17;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0;
+  max-width: calc(100% - 24px - var(--safe-left) - var(--safe-right));
+}
+
+.hud-meta-row {
+  display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
-  padding: 0;
 }
 
 .gameplay-hud-item {

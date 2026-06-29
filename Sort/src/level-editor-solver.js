@@ -1,7 +1,14 @@
+import {
+  isRetainWinMetFromBoard,
+  normalizeRetainTargets,
+} from "./game/win-conditions.js";
+
 const DIRS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 export const DEFAULT_MAX_DEPTH = 40;
 export const LARGE_GRID_TIME_BUDGET_MS = 2500;
 const TIMEOUT_CHECK_INTERVAL = 2048;
+
+const UNIFY_GOAL = { type: "unify" };
 
 let solverWorker = null;
 let solverJobSeq = 0;
@@ -63,7 +70,22 @@ function createDeadlineTracker(deadline) {
   };
 }
 
-function solveMinStepsBfs(board, size, maxDepth, deadline = Infinity) {
+export function solveGoalFromLevel(level) {
+  if (level?.winMode === "retain") {
+    const retainTargets = normalizeRetainTargets(level.retainTargets);
+    return { type: "retain", retainTargets };
+  }
+  return UNIFY_GOAL;
+}
+
+function isGoalBoard(board, goal) {
+  if (goal?.type === "retain") {
+    return isRetainWinMetFromBoard(board, goal.retainTargets);
+  }
+  return isBoardUnified(board);
+}
+
+function solveMinStepsBfs(board, size, maxDepth, deadline, goal) {
   const timeout = createDeadlineTracker(deadline);
   const visited = new Set([board.join(",")]);
   const queue = [{ board, steps: 0 }];
@@ -81,7 +103,7 @@ function solveMinStepsBfs(board, size, maxDepth, deadline = Infinity) {
         if (current[row * size + col] < 0) continue;
         const next = applyPop(current, size, row, col);
         if (!next) continue;
-        if (isBoardUnified(next)) return steps + 1;
+        if (isGoalBoard(next, goal)) return steps + 1;
 
         const key = next.join(",");
         if (visited.has(key)) continue;
@@ -94,9 +116,9 @@ function solveMinStepsBfs(board, size, maxDepth, deadline = Infinity) {
   return -1;
 }
 
-function dfsMinSteps(board, size, depth, limit, pathKeys, timeout) {
+function dfsMinSteps(board, size, depth, limit, pathKeys, timeout, goal) {
   if (timeout.isExpired()) return -2;
-  if (isBoardUnified(board)) return depth;
+  if (isGoalBoard(board, goal)) return depth;
   if (depth >= limit) return -1;
 
   for (let row = 0; row < size; row += 1) {
@@ -109,7 +131,7 @@ function dfsMinSteps(board, size, depth, limit, pathKeys, timeout) {
       if (pathKeys.has(key)) continue;
       pathKeys.add(key);
 
-      const solved = dfsMinSteps(next, size, depth + 1, limit, pathKeys, timeout);
+      const solved = dfsMinSteps(next, size, depth + 1, limit, pathKeys, timeout, goal);
       pathKeys.delete(key);
       if (solved === -2) return -2;
       if (solved >= 0) return solved;
@@ -119,21 +141,21 @@ function dfsMinSteps(board, size, depth, limit, pathKeys, timeout) {
   return -1;
 }
 
-function solveMinStepsIddfs(board, size, maxDepth, deadline) {
+function solveMinStepsIddfs(board, size, maxDepth, deadline, goal) {
   const timeout = createDeadlineTracker(deadline);
   for (let limit = 1; limit <= maxDepth; limit += 1) {
     if (timeout.isExpiredNow()) return -2;
     const pathKeys = new Set([board.join(",")]);
-    const solved = dfsMinSteps(board, size, 0, limit, pathKeys, timeout);
+    const solved = dfsMinSteps(board, size, 0, limit, pathKeys, timeout, goal);
     if (solved === -2) return -2;
     if (solved >= 0) return solved;
   }
   return -1;
 }
 
-function dfsSolvePath(board, size, depth, limit, pathKeys, moves, timeout) {
+function dfsSolvePath(board, size, depth, limit, pathKeys, moves, timeout, goal) {
   if (timeout.isExpired()) return null;
-  if (isBoardUnified(board)) {
+  if (isGoalBoard(board, goal)) {
     return { steps: depth, moves: [...moves] };
   }
   if (depth >= limit) return null;
@@ -156,6 +178,7 @@ function dfsSolvePath(board, size, depth, limit, pathKeys, moves, timeout) {
         pathKeys,
         [...moves, { row, col }],
         timeout,
+        goal,
       );
       pathKeys.delete(key);
       if (result) return result;
@@ -166,7 +189,9 @@ function dfsSolvePath(board, size, depth, limit, pathKeys, moves, timeout) {
 }
 
 export function solveOptimal(board, size, maxDepth = DEFAULT_MAX_DEPTH, options = {}) {
-  if (isBoardUnified(board)) {
+  const goal = options.goal ?? UNIFY_GOAL;
+
+  if (isGoalBoard(board, goal)) {
     return { steps: 0, moves: [], timedOut: false };
   }
 
@@ -176,8 +201,8 @@ export function solveOptimal(board, size, maxDepth = DEFAULT_MAX_DEPTH, options 
   const timeout = createDeadlineTracker(deadline);
 
   const minSteps = size <= 4
-    ? solveMinStepsBfs(board, size, maxDepth, deadline)
-    : solveMinStepsIddfs(board, size, maxDepth, deadline);
+    ? solveMinStepsBfs(board, size, maxDepth, deadline, goal)
+    : solveMinStepsIddfs(board, size, maxDepth, deadline, goal);
 
   if (minSteps === -2) {
     return { steps: -1, moves: [], timedOut: true };
@@ -187,7 +212,7 @@ export function solveOptimal(board, size, maxDepth = DEFAULT_MAX_DEPTH, options 
   }
 
   const pathKeys = new Set([board.join(",")]);
-  const pathResult = dfsSolvePath(board, size, 0, minSteps, pathKeys, [], timeout);
+  const pathResult = dfsSolvePath(board, size, 0, minSteps, pathKeys, [], timeout, goal);
   if (pathResult) {
     return { ...pathResult, timedOut: false };
   }
@@ -200,7 +225,8 @@ export function solveOptimal(board, size, maxDepth = DEFAULT_MAX_DEPTH, options 
 
 export function solveLevel(level, maxDepth = DEFAULT_MAX_DEPTH, options = {}) {
   const { size, board } = boardFromLevel(level);
-  return solveOptimal(board, size, maxDepth, options);
+  const goal = solveGoalFromLevel(level);
+  return solveOptimal(board, size, maxDepth, { ...options, goal });
 }
 
 function getSolverWorker() {
@@ -250,5 +276,10 @@ export function solveLevelAsync(
 
 export function levelBoardKey(level) {
   const { size, board } = boardFromLevel(level);
-  return `${size}|${board.join(",")}`;
+  const goal = solveGoalFromLevel(level);
+  let goalKey = "unify";
+  if (goal.type === "retain" && goal.retainTargets.length) {
+    goalKey = `retain:${goal.retainTargets.map((t) => `${t.colorId}x${t.count}`).join(",")}`;
+  }
+  return `${goalKey}|${size}|${board.join(",")}`;
 }

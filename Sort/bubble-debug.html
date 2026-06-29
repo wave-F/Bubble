@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-i18n-title="bubble.pageTitle">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>泡泡材质调试 - WebGPU</title>
+    <link rel="stylesheet" href="./src/styles/08-dev-locale.css" />
     <style>
       :root {
         --bg-top: #f7fbff;
@@ -199,10 +200,11 @@
     </script>
   </head>
   <body>
+    <div id="bubble-debug-locale"></div>
     <div id="info">
-      <div id="title">单泡泡调试面板 (WebGPU + TSL)</div>
-      <div id="sub-info">按住泡泡施压，压到形变后会爆炸；颜色请用上方色块切换</div>
-      <div id="compat">WebGPU 初始化失败时会在这里提示</div>
+      <div id="title" data-i18n="bubble.title">单泡泡调试面板 (WebGPU + TSL)</div>
+      <div id="sub-info" data-i18n="bubble.subInfo">按住泡泡施压，压到形变后会爆炸；颜色请用上方色块切换</div>
+      <div id="compat" data-i18n="bubble.compat.webgpuHint">WebGPU 初始化失败时会在这里提示</div>
       <div id="palette" aria-label="颜色按钮组">
         <button class="swatch is-active" data-color="#ff1f4b" style="background:#ff1f4b"></button>
         <button class="swatch" data-color="#ff9800" style="background:#ff9800"></button>
@@ -212,131 +214,131 @@
     </div>
 
     <div id="controls">
-      <h3>参数调试面板</h3>
-      <p>用于调单泡泡视觉，确认后再搬回游戏主界面。</p>
+      <h3 data-i18n="bubble.panel.title">参数调试面板</h3>
+      <p data-i18n="bubble.panel.hint">用于调单泡泡视觉，确认后再搬回游戏主界面。</p>
 
       <div class="ctrl-row">
-        <label for="p-transmission">透射强度<input id="p-transmission" type="range" min="0.5" max="1" step="0.01" value="0.93" /></label>
+        <label for="p-transmission" data-i18n="bubble.ctrl.transmission">透射强度<input id="p-transmission" type="range" min="0.5" max="1" step="0.01" value="0.93" /></label>
         <span class="ctrl-value" data-value-for="p-transmission">0.93</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-roughness">表面粗糙度<input id="p-roughness" type="range" min="0.01" max="0.3" step="0.01" value="0.10" /></label>
+        <label for="p-roughness" data-i18n="bubble.ctrl.roughness">表面粗糙度<input id="p-roughness" type="range" min="0.01" max="0.3" step="0.01" value="0.10" /></label>
         <span class="ctrl-value" data-value-for="p-roughness">0.10</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-clearcoat">镜面清漆<input id="p-clearcoat" type="range" min="0" max="1" step="0.01" value="0.42" /></label>
+        <label for="p-clearcoat" data-i18n="bubble.ctrl.clearcoat">镜面清漆<input id="p-clearcoat" type="range" min="0" max="1" step="0.01" value="0.42" /></label>
         <span class="ctrl-value" data-value-for="p-clearcoat">0.42</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-wobble">表面抖动幅度<input id="p-wobble" type="range" min="0" max="0.08" step="0.001" value="0.022" /></label>
+        <label for="p-wobble" data-i18n="bubble.ctrl.wobble">表面抖动幅度<input id="p-wobble" type="range" min="0" max="0.08" step="0.001" value="0.022" /></label>
         <span class="ctrl-value" data-value-for="p-wobble">0.022</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-flow">染料流动速度<input id="p-flow" type="range" min="0.2" max="2.5" step="0.01" value="1.15" /></label>
+        <label for="p-flow" data-i18n="bubble.ctrl.flow">染料流动速度<input id="p-flow" type="range" min="0.2" max="2.5" step="0.01" value="1.15" /></label>
         <span class="ctrl-value" data-value-for="p-flow">1.15</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-dye">染料对比度<input id="p-dye" type="range" min="0.6" max="2.4" step="0.01" value="1.12" /></label>
+        <label for="p-dye" data-i18n="bubble.ctrl.dye">染料对比度<input id="p-dye" type="range" min="0.6" max="2.4" step="0.01" value="1.12" /></label>
         <span class="ctrl-value" data-value-for="p-dye">1.12</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-edge">边缘发光<input id="p-edge" type="range" min="0" max="0.8" step="0.01" value="0.3" /></label>
+        <label for="p-edge" data-i18n="bubble.ctrl.edge">边缘发光<input id="p-edge" type="range" min="0" max="0.8" step="0.01" value="0.3" /></label>
         <span class="ctrl-value" data-value-for="p-edge">0.30</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-iri">虹彩强度<input id="p-iri" type="range" min="0" max="1" step="0.01" value="0.75" /></label>
+        <label for="p-iri" data-i18n="bubble.ctrl.iri">虹彩强度<input id="p-iri" type="range" min="0" max="1" step="0.01" value="0.75" /></label>
         <span class="ctrl-value" data-value-for="p-iri">0.75</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-spring-tension">弹性回弹<input id="p-spring-tension" type="range" min="0.04" max="0.25" step="0.005" value="0.12" /></label>
+        <label for="p-spring-tension" data-i18n="bubble.ctrl.springTension">弹性回弹<input id="p-spring-tension" type="range" min="0.04" max="0.25" step="0.005" value="0.12" /></label>
         <span class="ctrl-value" data-value-for="p-spring-tension">0.12</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-spring-damping">弹性阻尼<input id="p-spring-damping" type="range" min="0.7" max="0.98" step="0.005" value="0.84" /></label>
+        <label for="p-spring-damping" data-i18n="bubble.ctrl.springDamping">弹性阻尼<input id="p-spring-damping" type="range" min="0.7" max="0.98" step="0.005" value="0.84" /></label>
         <span class="ctrl-value" data-value-for="p-spring-damping">0.84</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-light-key">主光强度<input id="p-light-key" type="range" min="0.3" max="2" step="0.01" value="1.25" /></label>
+        <label for="p-light-key" data-i18n="bubble.ctrl.lightKey">主光强度<input id="p-light-key" type="range" min="0.3" max="2" step="0.01" value="1.25" /></label>
         <span class="ctrl-value" data-value-for="p-light-key">1.25</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-light-ambient">环境光强度<input id="p-light-ambient" type="range" min="0.1" max="1" step="0.01" value="0.62" /></label>
+        <label for="p-light-ambient" data-i18n="bubble.ctrl.lightAmbient">环境光强度<input id="p-light-ambient" type="range" min="0.1" max="1" step="0.01" value="0.62" /></label>
         <span class="ctrl-value" data-value-for="p-light-ambient">0.62</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-pop-progress">爆炸动画进度<input id="p-pop-progress" type="range" min="0" max="1" step="0.001" value="0" /></label>
+        <label for="p-pop-progress" data-i18n="bubble.ctrl.popProgress">爆炸动画进度<input id="p-pop-progress" type="range" min="0" max="1" step="0.001" value="0" /></label>
         <span class="ctrl-value" data-value-for="p-pop-progress">0.000</span>
       </div>
 
-      <h3>按压形变</h3>
-      <p>体积守恒压扁 + 触点凹陷（法线弯曲 + 粗糙度提升 + HDRI 反射）。拖动「按压预览」直接看效果。</p>
+      <h3 data-i18n="bubble.press.title">按压形变</h3>
+      <p data-i18n="bubble.press.hint">体积守恒压扁 + 触点凹陷（法线弯曲 + 粗糙度提升 + HDRI 反射）。拖动「按压预览」直接看效果。</p>
 
       <div class="ctrl-row">
-        <label for="p-press-preview">按压预览<input id="p-press-preview" type="range" min="0" max="1" step="0.001" value="0" /></label>
+        <label for="p-press-preview" data-i18n="bubble.ctrl.pressPreview">按压预览<input id="p-press-preview" type="range" min="0" max="1" step="0.001" value="0" /></label>
         <span class="ctrl-value" data-value-for="p-press-preview">0.000</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-press-fill-rate">按压蓄力速度<input id="p-press-fill-rate" type="range" min="0.3" max="4" step="0.01" value="2.86" /></label>
+        <label for="p-press-fill-rate" data-i18n="bubble.ctrl.pressFillRate">按压蓄力速度<input id="p-press-fill-rate" type="range" min="0.3" max="4" step="0.01" value="2.86" /></label>
         <span class="ctrl-value" data-value-for="p-press-fill-rate">2.86</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-press-spring-max">整体压扁强度<input id="p-press-spring-max" type="range" min="0.2" max="1.5" step="0.01" value="0.55" /></label>
+        <label for="p-press-spring-max" data-i18n="bubble.ctrl.pressSpringMax">整体压扁强度<input id="p-press-spring-max" type="range" min="0.2" max="1.5" step="0.01" value="0.55" /></label>
         <span class="ctrl-value" data-value-for="p-press-spring-max">0.55</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-press-contact-strength">按压接触强度<input id="p-press-contact-strength" type="range" min="0" max="2" step="0.01" value="0.72" /></label>
+        <label for="p-press-contact-strength" data-i18n="bubble.ctrl.pressContactStrength">按压接触强度<input id="p-press-contact-strength" type="range" min="0" max="2" step="0.01" value="0.72" /></label>
         <span class="ctrl-value" data-value-for="p-press-contact-strength">0.72</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-press-compress">镜头方向压缩<input id="p-press-compress" type="range" min="0.2" max="2.5" step="0.01" value="0.72" /></label>
+        <label for="p-press-compress" data-i18n="bubble.ctrl.pressCompress">镜头方向压缩<input id="p-press-compress" type="range" min="0.2" max="2.5" step="0.01" value="0.72" /></label>
         <span class="ctrl-value" data-value-for="p-press-compress">0.72</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-press-expand">屏幕平面鼓胀<input id="p-press-expand" type="range" min="0" max="2" step="0.01" value="0.34" /></label>
+        <label for="p-press-expand" data-i18n="bubble.ctrl.pressExpand">屏幕平面鼓胀<input id="p-press-expand" type="range" min="0" max="2" step="0.01" value="0.34" /></label>
         <span class="ctrl-value" data-value-for="p-press-expand">0.34</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-center-dent-depth">中心凹陷深度<input id="p-center-dent-depth" type="range" min="0" max="2.5" step="0.01" value="0.42" /></label>
+        <label for="p-center-dent-depth" data-i18n="bubble.ctrl.centerDentDepth">中心凹陷深度<input id="p-center-dent-depth" type="range" min="0" max="2.5" step="0.01" value="0.42" /></label>
         <span class="ctrl-value" data-value-for="p-center-dent-depth">0.42</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-center-dent-radius">中心凹陷半径<input id="p-center-dent-radius" type="range" min="0.3" max="2.5" step="0.01" value="0.72" /></label>
+        <label for="p-center-dent-radius" data-i18n="bubble.ctrl.centerDentRadius">中心凹陷半径<input id="p-center-dent-radius" type="range" min="0.3" max="2.5" step="0.01" value="0.72" /></label>
         <span class="ctrl-value" data-value-for="p-center-dent-radius">0.72</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-center-dent-power">中心凹陷锐度<input id="p-center-dent-power" type="range" min="0.5" max="8" step="0.01" value="2.35" /></label>
+        <label for="p-center-dent-power" data-i18n="bubble.ctrl.centerDentPower">中心凹陷锐度<input id="p-center-dent-power" type="range" min="0.5" max="8" step="0.01" value="2.35" /></label>
         <span class="ctrl-value" data-value-for="p-center-dent-power">2.35</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-center-dent-normal">凹陷法线弯曲<input id="p-center-dent-normal" type="range" min="0" max="2.5" step="0.01" value="0.85" /></label>
+        <label for="p-center-dent-normal" data-i18n="bubble.ctrl.centerDentNormal">凹陷法线弯曲<input id="p-center-dent-normal" type="range" min="0" max="2.5" step="0.01" value="0.85" /></label>
         <span class="ctrl-value" data-value-for="p-center-dent-normal">0.85</span>
       </div>
       <div class="ctrl-row">
-        <label for="p-center-dent-roughness">凹陷粗糙度提升<input id="p-center-dent-roughness" type="range" min="0" max="0.8" step="0.01" value="0.18" /></label>
+        <label for="p-center-dent-roughness" data-i18n="bubble.ctrl.centerDentRoughness">凹陷粗糙度提升<input id="p-center-dent-roughness" type="range" min="0" max="0.8" step="0.01" value="0.18" /></label>
         <span class="ctrl-value" data-value-for="p-center-dent-roughness">0.18</span>
       </div>
 
       <div class="toggle-row">
-        <label for="t-dye">内部染料流动</label>
+        <label for="t-dye" data-i18n="bubble.toggle.dye">内部染料流动</label>
         <input id="t-dye" type="checkbox" checked />
       </div>
       <div class="toggle-row">
-        <label for="t-edge">边缘发光</label>
+        <label for="t-edge" data-i18n="bubble.toggle.edge">边缘发光</label>
         <input id="t-edge" type="checkbox" checked />
       </div>
       <div class="toggle-row">
-        <label for="t-iri">虹彩薄膜</label>
+        <label for="t-iri" data-i18n="bubble.toggle.iri">虹彩薄膜</label>
         <input id="t-iri" type="checkbox" checked />
       </div>
       <div class="toggle-row">
-        <label for="t-bomb">炸弹泡泡模式</label>
+        <label for="t-bomb" data-i18n="bubble.toggle.bomb">炸弹泡泡模式</label>
         <input id="t-bomb" type="checkbox" />
       </div>
 
-      <button id="pop-btn" type="button">播放爆炸动画</button>
-      <button id="reset-btn" type="button">恢复默认参数</button>
-      <button id="sync-btn" type="button">一键同步到主游戏</button>
-      <button id="back-btn" type="button">返回主游戏</button>
+      <button id="pop-btn" type="button" data-i18n="bubble.btn.pop">播放爆炸动画</button>
+      <button id="reset-btn" type="button" data-i18n="bubble.btn.reset">恢复默认参数</button>
+      <button id="sync-btn" type="button" data-i18n="bubble.btn.sync">一键同步到主游戏</button>
+      <button id="back-btn" type="button" data-i18n="bubble.btn.back">返回主游戏</button>
     </div>
 
     <script type="module" src="./src/bubble-debug.js?v=20260626-press-pbr"></script>

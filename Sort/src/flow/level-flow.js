@@ -13,8 +13,12 @@ export function createLevelFlowController({
   onHideLevelWinOverlay,
   onContinueToLevel,
   showCommentary,
+  showVictoryCommentary,
   clearDelayMs = 500,
   overlayDelaySec = 1.12,
+  getClearDelayMs,
+  getOverlayDelaySec,
+  getCommentaryDurationMs,
 } = {}) {
   let levelClearReadyAt = 0;
   let victoryFxActive = false;
@@ -37,7 +41,8 @@ export function createLevelFlowController({
     victoryFxElapsed += dt;
     onVictoryFxUpdate?.(dt);
 
-    if (!victoryUiShown && victoryFxElapsed >= overlayDelaySec) {
+    const overlayDelay = getOverlayDelaySec?.() ?? overlayDelaySec;
+    if (!victoryUiShown && victoryFxElapsed >= overlayDelay) {
       victoryUiShown = true;
       const current = (getCurrentLevelIndex?.() ?? 0) + 1;
       const next = pendingNextLevelIndex + 1;
@@ -49,7 +54,8 @@ export function createLevelFlowController({
   function updateLevelClear(now, remainingCount) {
     if (isStarted?.() && !isGameOver?.() && !isLevelTransitioning?.() && remainingCount === 0) {
       if (levelClearReadyAt <= 0) {
-        levelClearReadyAt = now + clearDelayMs;
+        const delayMs = getClearDelayMs?.() ?? clearDelayMs;
+        levelClearReadyAt = now + delayMs;
       } else if (now >= levelClearReadyAt) {
         handleLevelCleared();
         return true;
@@ -86,7 +92,6 @@ export function createLevelFlowController({
     pendingNextLevelIndex = nextLevelIndex;
 
     onVictoryFxStart?.();
-    showCommentary?.(`第 ${justCleared + 1} 关通关！`, 900);
   }
 
   function continueToNextLevel() {

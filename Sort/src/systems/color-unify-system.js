@@ -59,5 +59,6 @@ export function createColorUnifySystem() {
   return {
     applyPop,
     isBoardUnified,
+    findGridNeighborFruits,
   };
 }

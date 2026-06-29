@@ -20,6 +20,23 @@ const BubbleSpawnState = {
   SPAWNING: "SPAWNING",
 };
 
+const PopWavePhase = {
+  IDLE: "IDLE",
+  WAIT: "WAIT",
+  RISE: "RISE",
+  SINK: "SINK",
+  RECOVER: "RECOVER",
+};
+
+function smoothstep01(t) {
+  const c = Math.max(0, Math.min(1, t));
+  return c * c * (3 - 2 * c);
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
 export function createBubbleMaterial(baseColor, bubbleTuning, bubbleBaseRadius = 1.2) {
   const accentColor = baseColor.clone().offsetHSL(0, 0.1, 0.2);
   const springUniform = uniform(0);
@@ -190,6 +207,16 @@ export function createBubbleEntityClass({
       this.spawnMaxOvershoot = 1.08;
       this.spawnMinScale = 0.12;
 
+      this.popWavePhase = PopWavePhase.IDLE;
+      this.popWaveElapsed = 0;
+      this.popWaveScaleMul = 1;
+      this.popWaveDelay = 0;
+      this.popWaveScalePeak = 1.14;
+      this.popWaveScaleDip = 0.86;
+      this.popWaveRiseDuration = 0.14;
+      this.popWaveSinkDuration = 0.1;
+      this.popWaveRecoverDuration = 0.16;
+
       this.group = new THREE.Group();
 
       const nodeMaterialData = createMaterial(baseColor);
@@ -248,6 +275,95 @@ export function createBubbleEntityClass({
     playDyePulse() {
       if (!this.active || this.sliced) return;
       this.dyePulse = 0.24;
+    }
+
+    playPopWave({
+      delay = 0,
+      scalePeak = 1.14,
+      scaleDip = 0.86,
+      riseDuration = 0.14,
+      sinkDuration = 0.1,
+      recoverDuration = 0.16,
+    } = {}) {
+      if (!this.active || this.sliced || this.motionMode !== "grid") return;
+      if (this.spawnState === BubbleSpawnState.SPAWNING) return;
+
+      this.popWaveDelay = Math.max(0, delay);
+      this.popWaveScalePeak = scalePeak;
+      this.popWaveScaleDip = scaleDip;
+      this.popWaveRiseDuration = riseDuration;
+      this.popWaveSinkDuration = sinkDuration;
+      this.popWaveRecoverDuration = recoverDuration;
+      this.popWaveElapsed = 0;
+      this.popWaveScaleMul = 1;
+      this.popWavePhase = this.popWaveDelay > 0 ? PopWavePhase.WAIT : PopWavePhase.RISE;
+    }
+
+    updatePopWave(dt) {
+      if (this.popWavePhase === PopWavePhase.IDLE) {
+        this.popWaveScaleMul = 1;
+        return false;
+      }
+
+      this.popWaveElapsed += dt;
+      const rest = 1;
+      const peak = this.popWaveScalePeak;
+      const dip = this.popWaveScaleDip;
+      const rebound = 1 + (peak - 1) * 0.35;
+
+      if (this.popWavePhase === PopWavePhase.WAIT) {
+        this.popWaveScaleMul = rest;
+        if (this.popWaveElapsed >= this.popWaveDelay) {
+          this.popWaveElapsed -= this.popWaveDelay;
+          this.popWavePhase = PopWavePhase.RISE;
+        }
+        return true;
+      }
+
+      if (this.popWavePhase === PopWavePhase.RISE) {
+        const t = this.popWaveRiseDuration > 0
+          ? Math.min(1, this.popWaveElapsed / this.popWaveRiseDuration)
+          : 1;
+        this.popWaveScaleMul = lerp(rest, peak, smoothstep01(t));
+        if (t >= 1) {
+          this.popWaveElapsed = 0;
+          this.popWavePhase = PopWavePhase.SINK;
+        }
+        return true;
+      }
+
+      if (this.popWavePhase === PopWavePhase.SINK) {
+        const t = this.popWaveSinkDuration > 0
+          ? Math.min(1, this.popWaveElapsed / this.popWaveSinkDuration)
+          : 1;
+        this.popWaveScaleMul = lerp(peak, dip, smoothstep01(t));
+        if (t >= 1) {
+          this.popWaveElapsed = 0;
+          this.popWavePhase = PopWavePhase.RECOVER;
+        }
+        return true;
+      }
+
+      if (this.popWavePhase === PopWavePhase.RECOVER) {
+        const duration = this.popWaveRecoverDuration;
+        const t = duration > 0 ? Math.min(1, this.popWaveElapsed / duration) : 1;
+        if (t < 0.62) {
+          const t2 = t / 0.62;
+          this.popWaveScaleMul = lerp(dip, rebound, smoothstep01(t2));
+        } else {
+          const t2 = (t - 0.62) / 0.38;
+          this.popWaveScaleMul = lerp(rebound, rest, smoothstep01(t2));
+        }
+        if (t >= 1) {
+          this.popWaveScaleMul = rest;
+          this.popWavePhase = PopWavePhase.IDLE;
+          this.popWaveElapsed = 0;
+          return false;
+        }
+        return true;
+      }
+
+      return false;
     }
 
     createSelectRing() {
@@ -397,6 +513,8 @@ export function createBubbleEntityClass({
         return;
       }
 
+      this.updatePopWave(dt);
+
       if (this.dyePulse > 0) {
         this.dyePulse = Math.max(0, this.dyePulse - dt);
       }
@@ -413,7 +531,8 @@ export function createBubbleEntityClass({
         wobbleY * this.radius * 0.028,
         0
       );
-      this.bubble.scale.setScalar(this.baseScale * this.selectionScale * breathe * dyeScale);
+      const waveScale = this.popWavePhase === PopWavePhase.IDLE ? 1 : this.popWaveScaleMul;
+      this.bubble.scale.setScalar(this.baseScale * this.selectionScale * breathe * dyeScale * waveScale);
       this.selectRing.visible = false;
     }
 

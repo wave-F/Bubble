@@ -1,0 +1,113 @@
+#win-cinematic-debug {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+#win-cinematic-panel {
+  width: 260px;
+  max-height: min(72vh, 560px);
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(10, 20, 33, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.win-cinematic-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #eff8ff;
+}
+
+.win-cinematic-hint {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9fd6ff;
+  line-height: 1.35;
+}
+
+.win-cinematic-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #cae9ff;
+  user-select: none;
+}
+
+.win-cinematic-toggle-row input {
+  accent-color: #6ec8ff;
+}
+
+#win-cinematic-preview-color {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(169, 216, 255, 0.45);
+  background: #f2f8ff;
+  color: #1f425f;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 6px;
+}
+
+.win-cinematic-field {
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  gap: 6px;
+  align-items: center;
+}
+
+.win-cinematic-field label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #cae9ff;
+}
+
+.win-cinematic-field input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(169, 216, 255, 0.45);
+  background: #f2f8ff;
+  color: #1f425f;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 6px;
+}
+
+.win-cinematic-hex {
+  display: grid;
+  grid-template-columns: 1fr 88px;
+  gap: 6px;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #cae9ff;
+}
+
+.win-cinematic-hex input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(169, 216, 255, 0.45);
+  background: #f2f8ff;
+  color: #1f425f;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 6px;
+  font-family: ui-monospace, monospace;
+}
+
+.win-cinematic-action {
+  width: 100%;
+}

@@ -1,5 +1,10 @@
 import * as THREE from "three/webgpu";
 
+function smoothstep(t) {
+  const x = Math.max(0, Math.min(1, t));
+  return x * x * (3 - 2 * x);
+}
+
 export function createGridBoardSystem({ scene } = {}) {
   let root = null;
   let fadeState = null;
@@ -50,26 +55,46 @@ export function createGridBoardSystem({ scene } = {}) {
 
     if (options.fadeIn) {
       fadeState = {
+        mode: "in",
         elapsed: 0,
         duration: 0.18,
+        start: 0,
         target: targetOpacity,
       };
     }
+  }
+
+  function fadeOut(duration = 0.5) {
+    if (!root?.material) return;
+
+    fadeState = {
+      mode: "out",
+      elapsed: 0,
+      duration: Math.max(0.05, duration),
+      start: root.material.opacity,
+      target: 0,
+    };
   }
 
   function update(dt) {
     if (!fadeState || !root?.material) return;
 
     fadeState.elapsed += dt;
-    const t = Math.min(fadeState.elapsed / fadeState.duration, 1);
-    const smooth = t * t * (3 - 2 * t);
-    root.material.opacity = fadeState.target * smooth;
+    const t = smoothstep(fadeState.elapsed / fadeState.duration);
+
+    if (fadeState.mode === "out") {
+      root.material.opacity = fadeState.start + (fadeState.target - fadeState.start) * t;
+    } else {
+      root.material.opacity = fadeState.target * t;
+    }
+
     if (t >= 1) fadeState = null;
   }
 
   return {
     show,
     clear,
+    fadeOut,
     update,
   };
 }

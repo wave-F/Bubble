@@ -18,18 +18,22 @@ export function createGameplayTipController({ hostEl } = {}) {
       window.clearTimeout(hideTimer);
       hideTimer = 0;
     }
-    tipEl?.classList.remove("show");
+    if (!tipEl) return;
+    tipEl.classList.remove("show", "is-victory-palette");
   }
 
-  function show(text, durationMs = 1200) {
+  function show(text, durationMs = 1200, options = {}) {
     const el = ensureTipEl();
     if (!el || !text) return;
 
     clear();
     el.textContent = text;
+    if (options.victoryPalette) {
+      el.classList.add("is-victory-palette");
+    }
     el.classList.add("show");
     hideTimer = window.setTimeout(() => {
-      el.classList.remove("show");
+      el.classList.remove("show", "is-victory-palette");
       hideTimer = 0;
     }, durationMs);
   }

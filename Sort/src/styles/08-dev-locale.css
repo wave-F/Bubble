@@ -1,0 +1,66 @@
+.dev-locale-bar {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(10, 20, 33, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 18px rgba(8, 16, 28, 0.28);
+}
+
+.dev-locale-btn {
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #b8d9f5;
+  cursor: pointer;
+}
+
+.dev-locale-btn.is-active {
+  background: rgba(94, 178, 255, 0.22);
+  border-color: rgba(140, 210, 255, 0.45);
+  color: #eff8ff;
+}
+
+.dev-locale-btn:not(.is-active):hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#dev-locale-mount {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 45;
+  display: flex;
+  justify-content: flex-end;
+}
+
+html:has(#level-test) #level-test {
+  top: 56px;
+}
+
+#bubble-debug-locale,
+#editor-locale-mount {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 30;
+}
+
+.level-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.level-editor-header-text {
+  flex: 1;
+  min-width: 0;
+}

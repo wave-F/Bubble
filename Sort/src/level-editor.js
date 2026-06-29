@@ -1,10 +1,19 @@
+import {
+  applyDomI18n,
+  colorName as localizedColorName,
+  mountLocaleToggle,
+  setDocumentLang,
+  t,
+} from "./i18n/dev-locale.js";
 import { createLevelEditorPlaytest } from "./level-editor-playtest.js";
 import {
   LARGE_GRID_TIME_BUDGET_MS,
   cancelSolverJobs,
   levelBoardKey,
   solveLevelAsync,
+  boardFromLevel,
 } from "./level-editor-solver.js";
+import { validateRetainLevel } from "./game/retain-level-validation.js";
 
 const COLORS = [
   { id: 0, name: "红", hex: "#ff0037" },
@@ -42,6 +51,9 @@ const els = {
   btnExport: document.getElementById("btn-export"),
   btnCopy: document.getElementById("btn-copy"),
   btnDownload: document.getElementById("btn-download"),
+  winMode: document.getElementById("win-mode"),
+  retainTargetsPanel: document.getElementById("retain-targets-panel"),
+  retainTargets: document.getElementById("retain-targets"),
 };
 
 const state = {
@@ -106,6 +118,60 @@ function gridLayoutParams(size) {
   return { gridCellSize: 0.9, gridBubbleFill: 0.8 };
 }
 
+function readRetainTargetsFromUi() {
+  const targets = [];
+  for (const color of COLORS) {
+    const input = els.retainTargets.querySelector(`input[data-color-id="${color.id}"]`);
+    const count = Math.max(0, Math.floor(Number(input?.value) || 0));
+    if (count > 0) targets.push({ colorId: color.id, count });
+  }
+  return targets;
+}
+
+function writeRetainTargetsToUi(retainTargets) {
+  const map = new Map();
+  if (Array.isArray(retainTargets)) {
+    for (const item of retainTargets) {
+      map.set(Math.floor(item.colorId), Math.floor(item.count));
+    }
+  }
+  for (const color of COLORS) {
+    const input = els.retainTargets.querySelector(`input[data-color-id="${color.id}"]`);
+    if (input) input.value = String(map.get(color.id) ?? 0);
+  }
+}
+
+function syncRetainTargetsPanelVisibility() {
+  const isRetain = els.winMode?.value === "retain";
+  els.retainTargetsPanel?.classList.toggle("hidden", !isRetain);
+}
+
+function renderRetainTargetInputs() {
+  if (!els.retainTargets) return;
+  els.retainTargets.innerHTML = "";
+  for (const color of COLORS) {
+    const row = document.createElement("label");
+    row.className = "retain-target-row";
+    row.title = localizedColorName(color.id, color.name);
+
+    const swatch = document.createElement("span");
+    swatch.className = "retain-target-swatch";
+    swatch.style.background = color.hex;
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.max = "25";
+    input.step = "1";
+    input.value = "0";
+    input.dataset.colorId = String(color.id);
+    input.addEventListener("input", () => invalidateSolutionCache());
+
+    row.append(swatch, input);
+    els.retainTargets.appendChild(row);
+  }
+}
+
 function levelToEditor(level) {
   const size = Math.max(3, Math.floor(level.gridSize ?? 3));
   if (Array.isArray(level.cells) && level.cells.length === size * size) {
@@ -127,6 +193,11 @@ function levelToEditor(level) {
   els.stepLimit.value = String(level.stepLimit ?? 8);
   els.gridSize.value = String(size);
   els.difficulty.value = level.difficulty ?? "easy";
+  if (els.winMode) {
+    els.winMode.value = level.winMode === "retain" ? "retain" : "unify";
+  }
+  writeRetainTargetsToUi(level.retainTargets);
+  syncRetainTargetsPanelVisibility();
 }
 
 function buildLevelJson() {
@@ -135,6 +206,8 @@ function buildLevelJson() {
   const colorCounts = buildColorCounts(cells);
   const colorIds = colorCounts.map((item) => item.colorId);
   const layout = gridLayoutParams(size);
+  const winMode = els.winMode?.value === "retain" ? "retain" : "unify";
+  const retainTargets = winMode === "retain" ? readRetainTargetsFromUi() : [];
 
   return {
     id: Math.max(1, Math.floor(Number(els.levelId.value) || 1)),
@@ -151,6 +224,8 @@ function buildLevelJson() {
     colorCounts,
     cells,
     stepLimit: Math.max(1, Math.floor(Number(els.stepLimit.value) || 1)),
+    winMode,
+    retainTargets,
   };
 }
 
@@ -161,7 +236,7 @@ function renderPalette() {
     btn.type = "button";
     btn.className = `swatch${color.id === state.activeColorId ? " active" : ""}`;
     btn.style.background = color.hex;
-    btn.title = `${color.id}: ${color.name}`;
+    btn.title = t("editor.palette.title", { id: color.id, name: localizedColorName(color.id, color.name) });
     btn.addEventListener("click", () => {
       state.activeColorId = color.id;
       renderPalette();
@@ -182,7 +257,11 @@ function renderGrid() {
     cell.type = "button";
     cell.className = "cell";
     cell.style.background = `radial-gradient(circle at 30% 28%, rgba(255,255,255,0.55), transparent 42%), ${color.hex}`;
-    cell.title = `(${i % size}, ${Math.floor(i / size)}) = ${color.name}`;
+    cell.title = t("editor.cell.title", {
+      col: i % size,
+      row: Math.floor(i / size),
+      name: localizedColorName(colorId, color.name),
+    });
     cell.addEventListener("pointerdown", (ev) => {
       ev.preventDefault();
       invalidateSolutionCache();
@@ -218,32 +297,65 @@ async function getCachedSolutionAsync(level = buildLevelJson()) {
   return result;
 }
 
-function formatSolutionSummary(solution, stepLimit) {
+function retainValidationMessage(code, details = {}) {
+  if (code === "emptyTargets") return t("editor.retainValidate.emptyTargets");
+  if (code === "targetsTooMany") {
+    return t("editor.retainValidate.targetsTooMany", {
+      sum: details.targetSum,
+      cells: details.cellCount,
+    });
+  }
+  if (code === "missingColor") {
+    const name = localizedColorName(details.colorId, String(details.colorId));
+    return t("editor.retainValidate.missingColor", { name });
+  }
+  return t("editor.solve.failed", { message: code });
+}
+
+function formatRetainWarnings(warnings = []) {
+  const lines = [];
+  if (warnings.includes("allCellsTarget")) lines.push(t("editor.retainValidate.warnAllCells"));
+  if (warnings.includes("alreadyWon")) lines.push(t("editor.retainValidate.warnAlreadyWon"));
+  return lines;
+}
+
+function formatSolutionSummary(solution, stepLimit, { winMode = "unify", warnings = [] } = {}) {
+  const warnLines = winMode === "retain" ? formatRetainWarnings(warnings) : [];
+  let mainLine = "";
+
   if (solution.timedOut) {
     const seconds = Math.round(LARGE_GRID_TIME_BUDGET_MS / 1000);
-    return `最优解：${seconds} 秒内未算完（5×5 可手试，或稍后再算）`;
-  }
-  if (solution.steps < 0) return "最优解：未找到（40 步内无解）";
-  if (solution.steps === 0) return "最优解：0 步（开局已同色）";
-  if (!solution.moves?.length && solution.steps > 0) {
-    return `最优解：至少 ${solution.steps} 步（未还原完整路径）`;
+    mainLine = t("editor.solve.timeout", { seconds });
+  } else if (solution.steps < 0) {
+    mainLine = winMode === "retain"
+      ? t("editor.solve.retainNotFound")
+      : t("editor.solve.notFound");
+  } else if (solution.steps === 0) {
+    mainLine = winMode === "retain"
+      ? t("editor.solve.retainZero")
+      : t("editor.solve.zero");
+  } else if (!solution.moves?.length && solution.steps > 0) {
+    mainLine = t("editor.solve.partial", { steps: solution.steps });
+  } else {
+    const limit = Math.max(1, Math.floor(stepLimit));
+    const margin = limit - solution.steps;
+    if (margin < 0) mainLine = t("editor.solve.tight", { steps: solution.steps, limit });
+    else if (margin === 0) mainLine = t("editor.solve.exact", { steps: solution.steps });
+    else mainLine = t("editor.solve.margin", { steps: solution.steps, limit, margin });
   }
 
-  const limit = Math.max(1, Math.floor(stepLimit));
-  const margin = limit - solution.steps;
-  if (margin < 0) return `最优解：${solution.steps} 步（当前上限 ${limit}，偏紧）`;
-  if (margin === 0) return `最优解：${solution.steps} 步（与上限相同）`;
-  return `最优解：${solution.steps} 步（上限 ${limit}，余量 +${margin}）`;
+  return [...warnLines, mainLine].filter(Boolean).join("\n");
 }
 
 function updateStats(extraLine = "") {
   const counts = buildColorCounts(state.cells);
   const text = counts.map((item) => {
     const color = COLORS[item.colorId];
-    return `${color?.name ?? item.colorId}×${item.count}`;
+    const name = localizedColorName(item.colorId, color?.name ?? item.colorId);
+    return `${name}×${item.count}`;
   }).join(" · ");
 
-  const lines = [`颜色分布：${text || "无"}`];
+  const lines = [t("editor.stats.colors", { text: text || t("editor.stats.none") })];
   if (extraLine) lines.push(extraLine);
   els.stats.textContent = lines.join("\n");
 }
@@ -252,29 +364,42 @@ function solvingStatusText(level) {
   const size = Math.max(3, Math.floor(level.gridSize ?? 3));
   if (size > 4) {
     const seconds = Math.round(LARGE_GRID_TIME_BUDGET_MS / 1000);
-    return `最优解：计算中（5×5，最多 ${seconds} 秒）…`;
+    return t("editor.solve.computingLarge", { seconds });
   }
-  return "最优解：计算中…";
+  return t("editor.solve.computing");
 }
 
 async function calculateOptimalSteps() {
   const level = buildLevelJson();
-  const originalText = els.btnSolve.textContent;
+  let retainWarnings = [];
+
+  if (level.winMode === "retain") {
+    const validation = validateRetainLevel(level, boardFromLevel);
+    if (!validation.ok) {
+      updateStats(retainValidationMessage(validation.code, validation));
+      return;
+    }
+    retainWarnings = validation.warnings ?? [];
+  }
+
   els.btnSolve.disabled = true;
   els.btnPlaytest.disabled = true;
-  els.btnSolve.textContent = "计算中…";
+  els.btnSolve.textContent = t("editor.btn.solving");
   updateStats(solvingStatusText(level));
 
   try {
     const solution = await getCachedSolutionAsync(level);
     if (solution.cancelled) return;
-    updateStats(formatSolutionSummary(solution, level.stepLimit));
+    updateStats(formatSolutionSummary(solution, level.stepLimit, {
+      winMode: level.winMode,
+      warnings: retainWarnings,
+    }));
   } catch (err) {
-    updateStats(`最优解：计算失败（${err?.message ?? "未知错误"}）`);
+    updateStats(t("editor.solve.failed", { message: err?.message ?? "?" }));
   } finally {
     els.btnSolve.disabled = false;
     els.btnPlaytest.disabled = false;
-    els.btnSolve.textContent = originalText;
+    els.btnSolve.textContent = t("editor.btn.solve");
   }
 }
 
@@ -342,10 +467,18 @@ function exportPreview() {
   return payload;
 }
 
-function setSaveButtonState(mode, text) {
+function saveButtonLabel(mode) {
+  if (mode === "ok") return t("editor.btn.saved");
+  if (mode === "fail") return t("editor.btn.saveFail");
+  if (mode === "needServer") return t("editor.btn.needDevServer");
+  if (mode === "saving") return t("editor.btn.saving");
+  return t("editor.btn.save");
+}
+
+function setSaveButtonState(mode, text = saveButtonLabel(mode)) {
   els.btnSave.classList.remove("save-ok", "save-fail", "primary");
   if (mode === "ok") els.btnSave.classList.add("save-ok");
-  else if (mode === "fail") els.btnSave.classList.add("save-fail");
+  else if (mode === "fail" || mode === "needServer") els.btnSave.classList.add("save-fail");
   else els.btnSave.classList.add("primary");
   els.btnSave.textContent = text;
 }
@@ -363,9 +496,9 @@ async function probeSaveApi() {
 
 async function saveLevelsToFile() {
   if (!state.saveApiAvailable) {
-    setSaveButtonState("fail", "需 dev 服务器");
+    setSaveButtonState("needServer");
     window.setTimeout(() => {
-      setSaveButtonState("default", "保存到关卡文件");
+      setSaveButtonState("default");
     }, 2000);
     return;
   }
@@ -373,7 +506,7 @@ async function saveLevelsToFile() {
   const payload = buildExportPayload();
   exportPreview();
   els.btnSave.disabled = true;
-  els.btnSave.textContent = "保存中…";
+  setSaveButtonState("saving");
 
   try {
     const res = await fetch(SAVE_LEVELS_URL, {
@@ -386,17 +519,17 @@ async function saveLevelsToFile() {
       throw new Error(data?.error ?? `HTTP ${res.status}`);
     }
 
-    setSaveButtonState("ok", "已保存");
+    setSaveButtonState("ok");
     renderLevelTabs();
     window.setTimeout(() => {
-      setSaveButtonState("default", "保存到关卡文件");
+      setSaveButtonState("default");
       els.btnSave.disabled = false;
     }, 1400);
   } catch (err) {
-    setSaveButtonState("fail", "保存失败");
-    els.stats.textContent = `保存失败：${err?.message ?? "未知错误"}（请用 npm run dev 启动服务器）`;
+    setSaveButtonState("fail");
+    els.stats.textContent = t("editor.save.failed", { message: err?.message ?? "?" });
     window.setTimeout(() => {
-      setSaveButtonState("default", "保存到关卡文件");
+      setSaveButtonState("default");
       els.btnSave.disabled = false;
       updateStats();
     }, 2200);
@@ -405,7 +538,7 @@ async function saveLevelsToFile() {
 
 async function loadLevelsFromUrl(url = DEFAULT_LEVELS_URL) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`无法加载 ${url}`);
+  if (!res.ok) throw new Error(t("editor.load.failed", { url }));
   const data = await res.json();
   state.allLevels = Array.isArray(data.levels) ? data.levels : [];
   state.loadedFromFile = false;
@@ -416,6 +549,12 @@ async function loadLevelsFromUrl(url = DEFAULT_LEVELS_URL) {
 }
 
 function bindEvents() {
+  els.winMode?.addEventListener("change", () => {
+    invalidateSolutionCache();
+    syncRetainTargetsPanelVisibility();
+    updateStats();
+  });
+
   els.gridSize.addEventListener("change", () => {
     invalidateSolutionCache();
     resizeCells(gridSize());
@@ -460,8 +599,8 @@ function bindEvents() {
     exportPreview();
     try {
       await navigator.clipboard.writeText(els.exportJson.value);
-      els.btnCopy.textContent = "已复制";
-      window.setTimeout(() => { els.btnCopy.textContent = "复制当前关卡"; }, 1200);
+      els.btnCopy.textContent = t("editor.btn.copied");
+      window.setTimeout(() => { els.btnCopy.textContent = t("editor.btn.copy"); }, 1200);
     } catch (_err) {
       els.exportJson.focus();
       els.exportJson.select();
@@ -495,12 +634,27 @@ const playtest = createLevelEditorPlaytest({
   },
 });
 
-async function init() {
+function refreshEditorLocale() {
+  applyDomI18n(document);
+  setDocumentLang();
   renderPalette();
+  renderGrid();
+  updateStats();
+  els.btnSolve.textContent = t("editor.btn.solve");
+  if (!els.btnSave.disabled) setSaveButtonState("default");
+  playtest.refreshLocale?.();
+}
+
+async function init() {
+  mountLocaleToggle(document.getElementById("editor-locale-mount"), {
+    onChange: refreshEditorLocale,
+  });
+  renderRetainTargetInputs();
+  refreshEditorLocale();
   bindEvents();
   state.saveApiAvailable = await probeSaveApi();
   if (!state.saveApiAvailable) {
-    els.btnSave.title = "请用 npm run dev 启动开发服务器后再保存";
+    els.btnSave.title = t("editor.save.title");
   }
   try {
     await loadLevelsFromUrl();

@@ -59,6 +59,11 @@ function normalizeLevel(rawLevel, index) {
   const cellCount = gridSize * gridSize;
   const fruitCount = Math.max(cellCount, Math.floor(asNumber(rawLevel?.fruitCount, colorCounts.reduce((sum, item) => sum + item.count, 0))));
   const cells = normalizeCells(rawLevel?.cells, gridSize);
+  const winModeRaw = String(rawLevel?.winMode ?? "unify").toLowerCase();
+  const winMode = winModeRaw === "retain" ? "retain" : "unify";
+  const retainTargets = winMode === "retain"
+    ? normalizeColorCounts(rawLevel?.retainTargets)
+    : [];
 
   return {
     id,
@@ -77,6 +82,8 @@ function normalizeLevel(rawLevel, index) {
     colorIds: Array.isArray(rawLevel?.colorIds) ? rawLevel.colorIds.map((v) => Math.floor(asNumber(v, 0))) : undefined,
     colorCounts,
     cells,
+    winMode,
+    retainTargets,
   };
 }
 

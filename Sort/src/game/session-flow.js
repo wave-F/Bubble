@@ -29,6 +29,7 @@ export function createSessionFlowController({
   onPersistLevelProgress,
   onBackHomeFromResult,
   onAfterLevelLoaded,
+  onResetVictoryPop,
   createBubbleEntity,
 } = {}) {
   function grantLevelWinProgress(nextLevelIndex) {
@@ -90,6 +91,13 @@ export function createSessionFlowController({
     state.nowPoint = null;
     state.stepLimit = Math.max(1, Math.floor(level.stepLimit ?? 1));
     state.stepsUsed = 0;
+    state.winMode = level.winMode === "retain" ? "retain" : "unify";
+    state.retainTargets = Array.isArray(level.retainTargets)
+      ? level.retainTargets.map((item) => ({
+        colorId: Math.floor(item.colorId),
+        count: Math.floor(item.count),
+      }))
+      : [];
     state.outOfMovesHandling = false;
     state.outOfMovesContinuePending = false;
     state.outOfMovesContinueUsedInLevel = false;
@@ -98,6 +106,7 @@ export function createSessionFlowController({
     levelFlow.reset();
     burstSystem.clear();
     victoryRainSystem.reset();
+    onResetVictoryPop?.();
     onSetLevelTestSelection?.(index);
     onUpdateStepsHud?.();
     resetFruits(level);
@@ -134,6 +143,7 @@ export function createSessionFlowController({
     levelFlow.reset();
     burstSystem.clear();
     victoryRainSystem.reset();
+    onResetVictoryPop?.();
 
     onHideHomeScreen?.();
     gameUI.hideGameOver();
@@ -216,6 +226,7 @@ export function createSessionFlowController({
     state.pointerDown = false;
     state.pendingWinReward = 0;
     state.rewardAppliedThisRound = true;
+    onResetVictoryPop?.();
     onClearBoardEntities?.();
     onShowHomeScreen?.();
   }
@@ -239,6 +250,20 @@ export function createSessionFlowController({
     }
   }
 
+  function openLevelLoseModal() {
+    gameAudio?.playGameLoseAudio?.();
+    gameUI.openSimpleLevelWin({
+      title: `第 ${state.currentLevelIndex + 1} 关失败`,
+      desc: "步数用完了",
+      actionText: "重新开始",
+      variant: "lose",
+      onAction: () => {
+        gameAudio?.playUiClickAudio?.();
+        retryCurrentLevelSimple();
+      },
+    });
+  }
+
   function endGame(reason, options = {}) {
     void reason;
     if (state.gameOver) return;
@@ -250,26 +275,20 @@ export function createSessionFlowController({
     onClearQueuedSelections?.();
     state.pendingPops.length = 0;
     victoryRainSystem.reset();
-    const openLoseResult = () => {
-      gameAudio?.playGameLoseAudio?.();
-      gameUI.openSimpleLevelWin({
-        title: `第 ${state.currentLevelIndex + 1} 关失败`,
-        desc: "步数用完了",
-        actionText: "重新开始",
-        variant: "lose",
-        onAction: () => {
-          gameAudio?.playUiClickAudio?.();
-          retryCurrentLevelSimple();
-        },
-      });
-    };
+    if (options.deferLoseModal !== true) {
+      onResetVictoryPop?.();
+    }
 
     if (options.showOutOfMovesBanner === true) {
-      onPlayOutOfMovesBanner?.(openLoseResult);
+      onPlayOutOfMovesBanner?.(openLevelLoseModal);
       return;
     }
 
-    openLoseResult();
+    if (options.deferLoseModal === true) {
+      return;
+    }
+
+    openLevelLoseModal();
   }
 
   return {
@@ -282,5 +301,6 @@ export function createSessionFlowController({
     loadLevel,
     resetFruits,
     endGame,
+    openLevelLoseModal,
   };
 }

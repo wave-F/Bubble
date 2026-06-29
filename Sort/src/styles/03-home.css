@@ -551,8 +551,17 @@
 
 #level-win {
   z-index: 14;
-  background: rgba(232, 244, 255, 0.9);
-  color: #2c5f8f;
+  background: color-mix(in srgb, var(--win-panel-bg, #e8f4ff) 90%, transparent);
+  color: var(--win-title-color, #2c5f8f);
+}
+
+#level-win.is-win h2 {
+  color: var(--win-title-color, #2c5f8f);
+}
+
+#level-win.is-win #level-win-next-btn {
+  background: linear-gradient(135deg, var(--win-btn-from, var(--button-1)), var(--win-btn-to, var(--button-2)));
+  box-shadow: 0 12px 22px color-mix(in srgb, var(--win-btn-from, #3d89d6) 35%, transparent);
 }
 
 #level-win.is-lose {
