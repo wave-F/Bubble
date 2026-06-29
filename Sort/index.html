@@ -53,11 +53,14 @@
       </div>
 
       <div id="hud" aria-label="关卡状态">
-        <div class="home-status gameplay-hud-item" aria-label="剩余步数">
-          <span id="score" class="home-status-value">MOVE:0</span>
-        </div>
-        <div class="home-status gameplay-hud-item" aria-label="当前关卡">
-          <span id="hud-level" class="home-status-value">LV:1</span>
+        <div id="hud-goals" class="hud-goals hidden" aria-label="关卡目标"></div>
+        <div class="hud-meta-row">
+          <div class="home-status gameplay-hud-item" aria-label="剩余步数">
+            <span id="score" class="home-status-value">MOVE:0</span>
+          </div>
+          <div class="home-status gameplay-hud-item" aria-label="当前关卡">
+            <span id="hud-level" class="home-status-value">LV:1</span>
+          </div>
         </div>
       </div>
 
@@ -187,25 +190,51 @@
       <div id="app"></div>
     </div>
 
-    <div id="level-test" aria-label="Level test tools">
-      <button id="level-test-toggle" class="tool-btn" type="button">测试关卡</button>
+    <div id="dev-locale-mount"></div>
+
+    <div id="level-test" data-i18n-aria="index.debug.levelTestAria">
+      <button id="level-test-toggle" class="tool-btn" type="button" data-i18n="index.debug.levelTestToggle">测试关卡</button>
       <div id="level-test-panel" class="hidden">
-        <label for="level-test-select">选择关卡（即切换）</label>
+        <label for="level-test-select" data-i18n="index.debug.selectLevel">选择关卡（即切换）</label>
         <select id="level-test-select"></select>
       </div>
-      <button id="clear-data-test-btn" class="tool-btn tool-btn-danger" type="button">清空数据</button>
+      <button id="clear-data-test-btn" class="tool-btn tool-btn-danger" type="button" data-i18n="index.debug.clearData">清空数据</button>
     </div>
 
-    <div id="light-debug" aria-label="光源调试">
-      <button id="light-debug-toggle" class="tool-btn" type="button">光源调试</button>
+    <div id="win-cinematic-debug" aria-label="Win cinematic editor">
+      <button id="win-cinematic-toggle" class="tool-btn" type="button">Win cinematic</button>
+      <div id="win-cinematic-panel" class="hidden">
+        <div class="win-cinematic-title">Victory / lose cinematic</div>
+        <p class="win-cinematic-hint">W = preview win · L = preview lose</p>
+        <label class="win-cinematic-toggle-row">
+          <input id="win-cinematic-use-palette" type="checkbox" checked />
+          <span>Use bubble palette</span>
+        </label>
+        <label class="win-cinematic-hex">
+          <span>Preview bubble</span>
+          <select id="win-cinematic-preview-color"></select>
+        </label>
+        <div data-cinematic-fields></div>
+        <label class="win-cinematic-hex">
+          <span>Bg hex</span>
+          <input id="win-cinematic-bg-hex" type="text" maxlength="6" spellcheck="false" />
+        </label>
+        <button id="win-cinematic-preview-win" class="tool-btn win-cinematic-action" type="button">Preview win</button>
+        <button id="win-cinematic-preview-lose" class="tool-btn win-cinematic-action" type="button">Preview lose</button>
+        <button id="win-cinematic-reset" class="tool-btn win-cinematic-action" type="button">Reset defaults</button>
+      </div>
+    </div>
+
+    <div id="light-debug" data-i18n-aria="index.debug.lightAria">
+      <button id="light-debug-toggle" class="tool-btn" type="button" data-i18n="index.debug.lightToggle">光源调试</button>
       <div id="light-debug-panel" class="hidden">
-        <div class="light-debug-title">场景光源</div>
+        <div class="light-debug-title" data-i18n="index.debug.lightTitle">场景光源</div>
 
         <div class="light-debug-group">
           <div class="light-debug-group-head">
             <label class="light-debug-toggle" for="light-toggle-ambient">
               <input id="light-toggle-ambient" type="checkbox" checked />
-              <span>环境光</span>
+              <span data-i18n="index.debug.lightAmbient">环境光</span>
             </label>
             <span class="light-debug-value" data-value-for="light-slider-ambient">0.62</span>
           </div>
@@ -216,7 +245,7 @@
           <div class="light-debug-group-head">
             <label class="light-debug-toggle" for="light-toggle-key">
               <input id="light-toggle-key" type="checkbox" checked />
-              <span>主光</span>
+              <span data-i18n="index.debug.lightKey">主光</span>
             </label>
             <span class="light-debug-value" data-value-for="light-slider-key">1.25</span>
           </div>
@@ -227,7 +256,7 @@
           <div class="light-debug-group-head">
             <label class="light-debug-toggle" for="light-toggle-rim">
               <input id="light-toggle-rim" type="checkbox" checked />
-              <span>轮廓光</span>
+              <span data-i18n="index.debug.lightRim">轮廓光</span>
             </label>
             <span class="light-debug-value" data-value-for="light-slider-rim">0.82</span>
           </div>
@@ -238,7 +267,7 @@
           <div class="light-debug-group-head">
             <label class="light-debug-toggle" for="light-toggle-fill">
               <input id="light-toggle-fill" type="checkbox" checked />
-              <span>补光</span>
+              <span data-i18n="index.debug.lightFill">补光</span>
             </label>
             <span class="light-debug-value" data-value-for="light-slider-fill">0.44</span>
           </div>
@@ -249,14 +278,14 @@
           <div class="light-debug-group-head">
             <label class="light-debug-toggle" for="light-toggle-environment">
               <input id="light-toggle-environment" type="checkbox" checked />
-              <span>环境贴图</span>
+              <span data-i18n="index.debug.lightEnvironment">环境贴图</span>
             </label>
             <span class="light-debug-value" data-value-for="light-slider-environment">1.15</span>
           </div>
           <input id="light-slider-environment" type="range" min="0" max="2" step="0.01" value="1.15" />
         </div>
 
-        <button id="light-debug-reset" class="tool-btn light-debug-reset" type="button">重置默认</button>
+        <button id="light-debug-reset" class="tool-btn light-debug-reset" type="button" data-i18n="index.debug.lightReset">重置默认</button>
       </div>
     </div>
 

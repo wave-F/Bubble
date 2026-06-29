@@ -1,4 +1,6 @@
 import { applyPop, boardFromLevel, isBoardUnified } from "./level-editor-solver.js";
+import { isRetainWinMetFromBoard, normalizeWinMode } from "./game/win-conditions.js";
+import { applyDomI18n, colorName as localizedColorName, t } from "./i18n/dev-locale.js";
 import { DIRECTION_ARROW, mechanismsFromLevel } from "./systems/mechanism-dye-logic.js";
 
 export function createLevelEditorPlaytest({
@@ -40,14 +42,23 @@ export function createLevelEditorPlaytest({
       moveIndex: 0,
       timer: null,
     },
+    winMode: "unify",
+    retainTargets: [],
   };
+
+  function isWinBoard(board) {
+    if (normalizeWinMode(playState.winMode) === "retain") {
+      return isRetainWinMetFromBoard(board, playState.retainTargets);
+    }
+    return isBoardUnified(board);
+  }
 
   function colorHex(colorId) {
     return colors[colorId]?.hex ?? "#888";
   }
 
-  function colorName(colorId) {
-    return colors[colorId]?.name ?? String(colorId);
+  function colorLabel(colorId) {
+    return localizedColorName(colorId, colors[colorId]?.name ?? String(colorId));
   }
 
   function stopPreviewTimer() {
@@ -88,45 +99,49 @@ export function createLevelEditorPlaytest({
 
   function formatOptimalText() {
     const { steps, timedOut, moves } = playState.solution;
-    if (timedOut) return "最优步数：超时未算完（可继续手玩）";
-    if (steps < 0) return "最优步数：未找到解（40 步内）";
-    if (steps === 0) return "最优步数：0（开局已同色）";
-    if (!moves?.length) return `最优步数：${steps}（路径未就绪）`;
-    return `最优步数：${steps}`;
+    if (timedOut) return t("playtest.optimal.timeout");
+    if (steps < 0) return t("playtest.optimal.notFound");
+    if (steps === 0) return t("playtest.optimal.zero");
+    if (!moves?.length) return t("playtest.optimal.noPath", { steps });
+    return t("playtest.optimal.steps", { steps });
   }
 
   function updateHud() {
     const remaining = Math.max(0, playState.stepLimit - playState.stepsUsed);
-    stepsEl.textContent = `剩余步数：${remaining} / ${playState.stepLimit}`;
+    stepsEl.textContent = t("playtest.steps", { remaining, limit: playState.stepLimit });
     optimalEl.textContent = formatOptimalText();
 
     if (playState.preview.active) {
       const total = playState.solution.moves.length;
       const current = playState.preview.moveIndex;
       if (current >= total && playState.result === "win") {
-        statusEl.textContent = `解法预览完成：共 ${total} 步`;
+        statusEl.textContent = t("playtest.status.previewDone", { total });
         statusEl.dataset.state = "win";
       } else {
-        statusEl.textContent = `解法预览：${current} / ${total}`;
+        statusEl.textContent = t("playtest.status.preview", { current, total });
         statusEl.dataset.state = "playing";
       }
       return;
     }
 
     if (playState.result === "win") {
-      statusEl.textContent = "过关！剩余泡泡颜色已统一";
+      statusEl.textContent = playState.winMode === "retain"
+        ? t("playtest.status.winRetain")
+        : t("playtest.status.win");
       statusEl.dataset.state = "win";
       return;
     }
     if (playState.result === "lose") {
-      statusEl.textContent = "失败：步数用尽，颜色未统一";
+      statusEl.textContent = playState.winMode === "retain"
+        ? t("playtest.status.loseRetain")
+        : t("playtest.status.lose");
       statusEl.dataset.state = "lose";
       return;
     }
 
     statusEl.textContent = playState.mechanisms.size
       ? "捏碎泡泡：四邻染色；机制泡泡被染色后会沿箭头方向传播"
-      : "点击泡泡捏碎：自己消失，四邻染成源色";
+      : t("playtest.status.playing");
     statusEl.dataset.state = "playing";
   }
 
@@ -163,13 +178,14 @@ export function createLevelEditorPlaytest({
         if (colorId < 0) {
           cell.classList.add("empty");
           cell.disabled = true;
-          cell.title = `(${col}, ${row}) 已消除`;
+          cell.title = t("playtest.cell.removed", { col, row });
         } else {
           const hex = colorHex(colorId);
           cell.style.background = `radial-gradient(circle at 30% 28%, rgba(255,255,255,0.55), transparent 42%), ${hex}`;
+          const baseTitle = t("playtest.cell.color", { col, row, name: colorLabel(colorId) });
           cell.title = mechanismDir
-            ? `(${col}, ${row}) ${colorName(colorId)} · 机制${DIRECTION_ARROW[mechanismDir]}`
-            : `(${col}, ${row}) ${colorName(colorId)}`;
+            ? `${baseTitle} · 机制${DIRECTION_ARROW[mechanismDir]}`
+            : baseTitle;
           if (!playState.preview.active && !playState.ended) {
             cell.addEventListener("click", () => onCellClick(row, col));
           } else {
@@ -210,7 +226,7 @@ export function createLevelEditorPlaytest({
     playState.board = next;
     playState.stepsUsed += 1;
 
-    if (isBoardUnified(playState.board)) {
+    if (isWinBoard(playState.board)) {
       playState.ended = true;
       playState.result = "win";
       renderBoard();
@@ -243,7 +259,7 @@ export function createLevelEditorPlaytest({
     playState.preview.moveIndex += 1;
     playState.stepsUsed = playState.preview.moveIndex;
 
-    if (isBoardUnified(playState.board)) {
+    if (isWinBoard(playState.board)) {
       playState.ended = true;
       playState.result = "win";
     }
@@ -294,13 +310,20 @@ export function createLevelEditorPlaytest({
     playState.board = board.slice();
     playState.stepsUsed = 0;
     playState.stepLimit = Math.max(1, Math.floor(level.stepLimit ?? 1));
-    playState.ended = isBoardUnified(board);
+    playState.winMode = level.winMode === "retain" ? "retain" : "unify";
+    playState.retainTargets = Array.isArray(level.retainTargets)
+      ? level.retainTargets.map((item) => ({
+        colorId: Math.floor(item.colorId),
+        count: Math.floor(item.count),
+      }))
+      : [];
+    playState.ended = isWinBoard(board);
     playState.result = playState.ended ? "win" : null;
     playState.solution = solution ?? { steps: -1, moves: [] };
     playState.preview.active = false;
     playState.preview.moveIndex = 0;
 
-    titleEl.textContent = level.name ?? `关卡 ${level.id ?? ""}`;
+    titleEl.textContent = level.name ?? t("playtest.levelTitle", { id: level.id ?? "" });
     renderBoard();
     updateHud();
     updatePreviewButtons();
@@ -308,7 +331,7 @@ export function createLevelEditorPlaytest({
 
   async function loadSolution(level) {
     const requestId = ++playState.solveRequestId;
-    optimalEl.textContent = getSolvingStatusText?.(level) ?? "最优步数：计算中…";
+    optimalEl.textContent = getSolvingStatusText?.(level) ?? t("playtest.optimal.computing");
     onSolveStart?.();
 
     try {
@@ -328,7 +351,7 @@ export function createLevelEditorPlaytest({
     const level = getLevel();
     playState.solveRequestId += 1;
     startFromLevel(level, { steps: -1, moves: [], timedOut: false });
-    optimalEl.textContent = getSolvingStatusText?.(level) ?? "最优步数：计算中…";
+    optimalEl.textContent = getSolvingStatusText?.(level) ?? t("playtest.optimal.computing");
     overlay.classList.remove("hidden");
     overlay.setAttribute("aria-hidden", "false");
     document.body.classList.add("playtest-open");
@@ -370,5 +393,13 @@ export function createLevelEditorPlaytest({
     if (ev.key === "Escape" && !overlay.classList.contains("hidden")) close();
   });
 
-  return { open, close, restart };
+  function refreshLocale() {
+    applyDomI18n(overlay);
+    if (!overlay.classList.contains("hidden")) {
+      updateHud();
+      renderBoard();
+    }
+  }
+
+  return { open, close, restart, refreshLocale };
 }

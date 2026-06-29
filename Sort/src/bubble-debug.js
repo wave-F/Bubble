@@ -1,3 +1,9 @@
+import {
+  applyDomI18n,
+  mountLocaleToggle,
+  setDocumentLang,
+  t,
+} from "./i18n/dev-locale.js";
 import * as THREE from "three";
 import { WebGPURenderer, MeshPhysicalNodeMaterial } from "three/webgpu";
 import {
@@ -22,7 +28,22 @@ const popProgressValue = document.querySelector('[data-value-for="p-pop-progress
 const tuningStorageKey = "bubble_tuning_v1";
 const debugBuildTag = "press-pbr-2026-06-26";
 const bubbleBaseRadius = 1.2;
-if (compatEl) compatEl.textContent = `调试页版本: ${debugBuildTag}`;
+
+function refreshBubbleDebugLocale() {
+  applyDomI18n(document);
+  setDocumentLang();
+  if (compatEl && compatEl.dataset.userMessage !== "1") {
+    compatEl.textContent = t("bubble.compat.version", { tag: debugBuildTag });
+  }
+}
+
+const localeMount = document.getElementById("bubble-debug-locale");
+mountLocaleToggle(localeMount, {
+  onChange: () => {
+    refreshBubbleDebugLocale();
+  },
+});
+refreshBubbleDebugLocale();
 
 const defaults = {
   transmission: 0.93,
@@ -410,9 +431,11 @@ syncBtn.addEventListener("click", () => {
 
   try {
     window.localStorage.setItem(tuningStorageKey, JSON.stringify(payload));
-    compatEl.textContent = "已同步到主游戏。返回后开局会自动应用。";
+    compatEl.dataset.userMessage = "1";
+    compatEl.textContent = t("bubble.compat.syncOk");
   } catch (_err) {
-    compatEl.textContent = "同步失败：浏览器不允许写入本地存储。";
+    compatEl.dataset.userMessage = "1";
+    compatEl.textContent = t("bubble.compat.syncFail");
   }
 });
 
@@ -1125,7 +1148,8 @@ async function bootstrap() {
     await renderer.init();
     await applyBubbleSceneEnvironment({ scene, renderer });
   } catch (error) {
-    compatEl.textContent = "初始化失败：浏览器可能不支持 WebGPU/WebGL2。";
+    compatEl.dataset.userMessage = "1";
+    compatEl.textContent = t("bubble.compat.initFail");
     throw error;
   }
 

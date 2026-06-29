@@ -5,6 +5,16 @@ import { createGridBoardSystem } from "./systems/grid-board-system.js";
 import { createBubbleSpawnSystem } from "./systems/bubble-spawn-system.js";
 import { createPressSystem } from "./systems/press-system.js";
 import { createColorUnifySystem } from "./systems/color-unify-system.js";
+import { createPopWaveSystem } from "./systems/pop-wave-system.js";
+import { createVictoryPopSequence } from "./systems/victory-pop-sequence.js";
+import { createVictoryPresentation } from "./systems/victory-presentation-system.js";
+import { createWinCinematicTuning } from "./game/win-cinematic-tuning.js";
+import { createWinCinematicDebugUi } from "./game/win-cinematic-debug-ui.js";
+import {
+  applyVictoryPaletteToDom,
+  clearVictoryPaletteFromDom,
+  resolveVictoryPalette,
+} from "./game/victory-palette.js";
 import {
   applyBubbleSceneEnvironment,
   warmupBubbleRenderer,
@@ -21,7 +31,18 @@ import { createHomeScreenController } from "./game/home-screen.js";
 import { createSessionFlowController } from "./game/session-flow.js";
 import { createLayoutViewportController } from "./game/layout-viewport.js";
 import { createRoundStateController } from "./game/round-state.js";
+import {
+  countActiveByColor,
+  evaluateLevelWin,
+  normalizeWinMode,
+} from "./game/win-conditions.js";
 import { createLightDebugUiController } from "./game/light-debug-ui.js";
+import {
+  applyDomI18n,
+  mountLocaleToggle,
+  t,
+  setDocumentLang,
+} from "./i18n/dev-locale.js";
 import { createBubbleMaterial, createBubbleEntityClass } from "./entities/bubble-entity.js";
 import {
   GAME_AUDIO_URLS,
@@ -39,6 +60,7 @@ const gameplayRulesPanelEl = document.getElementById("gameplay-rules-panel");
 const hudEl = document.getElementById("hud");
 const stepsEl = document.getElementById("score");
 const hudLevelEl = document.getElementById("hud-level");
+const hudGoalsEl = document.getElementById("hud-goals");
 const sliceStateEl = document.getElementById("slice-state");
 const commentaryEl = document.getElementById("commentary");
 const gameplayIntroMaskEl = document.getElementById("gameplay-intro-mask");
@@ -90,6 +112,7 @@ const levelWinEl = document.getElementById("level-win");
 const levelWinTitleEl = document.getElementById("level-win-title");
 const levelWinDescEl = document.getElementById("level-win-desc");
 const levelWinNextBtn = document.getElementById("level-win-next-btn");
+
 const gameOverEl = document.getElementById("game-over");
 const gameOverTitleEl = document.getElementById("game-over-title");
 const startBtn = document.getElementById("start-btn");
@@ -118,6 +141,14 @@ const lightValueFillEl = document.querySelector('[data-value-for="light-slider-f
 const lightToggleEnvironmentEl = document.getElementById("light-toggle-environment");
 const lightSliderEnvironmentEl = document.getElementById("light-slider-environment");
 const lightValueEnvironmentEl = document.querySelector('[data-value-for="light-slider-environment"]');
+const winCinematicToggleBtn = document.getElementById("win-cinematic-toggle");
+const winCinematicPanelEl = document.getElementById("win-cinematic-panel");
+const winCinematicResetBtn = document.getElementById("win-cinematic-reset");
+const winCinematicBgHexEl = document.getElementById("win-cinematic-bg-hex");
+const winCinematicPreviewWinBtn = document.getElementById("win-cinematic-preview-win");
+const winCinematicPreviewLoseBtn = document.getElementById("win-cinematic-preview-lose");
+const winCinematicUsePaletteEl = document.getElementById("win-cinematic-use-palette");
+const winCinematicPreviewColorEl = document.getElementById("win-cinematic-preview-color");
 
 const outOfMovesBannerEl = document.getElementById("out-of-moves-banner");
 let outOfMovesContinueMaskEl = document.getElementById("out-of-moves-continue-mask");
@@ -288,6 +319,10 @@ const state = {
   inHome: false,
   resourcesReady: false,
   levelTransitioning: false,
+  victoryPopActive: false,
+  defeatPopActive: false,
+  defeatModalDelayRemaining: 0,
+  victoryBubbleColorId: null,
 
   currentLevelIndex: 0,
   currentPlayableLevelIndex: 0,
@@ -303,6 +338,8 @@ const state = {
   lastMoveAt: 0,
   stepLimit: 0,
   stepsUsed: 0,
+  winMode: "unify",
+  retainTargets: [],
   coins: 0,
   stamina: staminaMax,
   staminaLastRecoverAt: 0,
@@ -341,6 +378,49 @@ scene.background = new THREE.Color(0xfffbf2);
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
 camera.position.set(0, 0, 12.1);
 camera.lookAt(0, 0, 0);
+
+const winCinematicTuning = createWinCinematicTuning();
+winCinematicTuning.loadFromStorage();
+
+let activeVictoryPalette = null;
+
+function captureVictoryBubbleColorId(fruits) {
+  for (const fruit of fruits) {
+    if (fruit?.active && !fruit.sliced) {
+      state.victoryBubbleColorId = fruit.colorId ?? "blue";
+      return;
+    }
+  }
+  state.victoryBubbleColorId = "blue";
+}
+
+function buildVictoryPaletteForColorId(colorId) {
+  const tuning = winCinematicTuning.get();
+  return resolveVictoryPalette({
+    colors,
+    colorId: colorId ?? "blue",
+    useBubblePalette: tuning.useBubblePalette,
+    manualBgHex: tuning.bgToHex,
+  });
+}
+
+function applyActiveVictoryPalette(colorId = state.victoryBubbleColorId) {
+  const tuning = winCinematicTuning.get();
+  if (!tuning.useBubblePalette) {
+    activeVictoryPalette = null;
+    clearVictoryPaletteFromDom();
+    return null;
+  }
+  activeVictoryPalette = buildVictoryPaletteForColorId(colorId);
+  applyVictoryPaletteToDom(activeVictoryPalette);
+  return activeVictoryPalette;
+}
+
+function clearActiveVictoryPalette() {
+  activeVictoryPalette = null;
+  state.victoryBubbleColorId = null;
+  clearVictoryPaletteFromDom();
+}
 
 let renderer;
 
@@ -384,6 +464,88 @@ const burstBubbleGeometry = new THREE.SphereGeometry(1, 22, 22);
 const createBubbleMaterialForTuning = (baseColor) => createBubbleMaterial(baseColor, bubbleTuning, bubbleBaseRadius);
 
 const colorUnifySystem = createColorUnifySystem();
+const popWaveSystem = createPopWaveSystem({
+  findGridNeighborFruits: colorUnifySystem.findGridNeighborFruits,
+});
+const victoryPresentation = createVictoryPresentation({
+  phoneFrameEl,
+  bgFrom: 0xfffbf2,
+  getTuning: () => winCinematicTuning.get(),
+  getPaletteTarget: () => {
+    const tuning = winCinematicTuning.get();
+    if (tuning.useBubblePalette && activeVictoryPalette) {
+      return activeVictoryPalette.sceneBg;
+    }
+    return null;
+  },
+});
+
+const victoryPopSequence = createVictoryPopSequence({
+  getTuning: () => winCinematicTuning.get(),
+});
+const victoryBurstDir = new THREE.Vector3();
+
+function resetDefeatPopState() {
+  state.defeatPopActive = false;
+  state.defeatModalDelayRemaining = 0;
+}
+
+function resetVictoryPopState() {
+  victoryPopSequence.reset();
+  state.victoryPopActive = false;
+  resetDefeatPopState();
+  winCinematicTuning.applyCssVars();
+}
+
+function countActiveFruits() {
+  let count = 0;
+  for (const fruit of fruits) {
+    if (fruit.active && !fruit.sliced) count += 1;
+  }
+  return count;
+}
+
+function scheduleDefeatModalDelay() {
+  state.defeatModalDelayRemaining = winCinematicTuning.get().loseOverlayDelaySec;
+}
+
+function openDefeatModal() {
+  resetDefeatPopState();
+  victoryPopSequence.reset();
+  winCinematicTuning.applyLoseCssVars();
+  sessionFlow.openLevelLoseModal();
+}
+
+function startDefeatPopSequenceIfNeeded() {
+  if (countActiveFruits() > 0) {
+    victoryPopSequence.start(fruits);
+    state.defeatPopActive = true;
+    state.pointerDown = false;
+    state.pressAwaitRelease = false;
+    clearQueuedSelections();
+    return;
+  }
+  scheduleDefeatModalDelay();
+}
+
+function beginDeferredLosePresentation() {
+  endGame(`第 ${state.currentLevelIndex + 1} 关失败：步数用尽`, {
+    deferLoseModal: true,
+    showOutOfMovesBanner: false,
+  });
+  startDefeatPopSequenceIfNeeded();
+}
+
+function burstDirForFruit(fruit) {
+  victoryBurstDir.set(
+    camera.position.x - fruit.group.position.x,
+    camera.position.y - fruit.group.position.y,
+    camera.position.z - fruit.group.position.z,
+  );
+  if (victoryBurstDir.lengthSq() < 1e-6) victoryBurstDir.set(0, 0, 1);
+  else victoryBurstDir.normalize();
+  return victoryBurstDir;
+}
 
 const gameRuntime = createGameRuntime();
 const {
@@ -397,6 +559,38 @@ const {
   gameAudio,
   levelRuntime,
 } = gameRuntime;
+
+const winCinematicDebugUi = createWinCinematicDebugUi({
+  elements: {
+    toggleBtn: winCinematicToggleBtn,
+    panelEl: winCinematicPanelEl,
+    resetBtn: winCinematicResetBtn,
+    hexInputEl: winCinematicBgHexEl,
+    previewWinBtn: winCinematicPreviewWinBtn,
+    previewLoseBtn: winCinematicPreviewLoseBtn,
+    usePaletteCheckbox: winCinematicUsePaletteEl,
+    previewColorSelect: winCinematicPreviewColorEl,
+  },
+  tuning: winCinematicTuning,
+  getRuntime: () => ({
+    scene,
+    phoneFrameEl,
+    victoryPresentation,
+    gridBoardSystem,
+    gameplayTip,
+    gameUI,
+    getLevelNumber: () => state.currentLevelIndex,
+    getGridLayout: () => LEVELS[state.currentLevelIndex]?.gridLayout ?? null,
+    getPreviewBubbleColorId: () => {
+      const tuning = winCinematicTuning.get();
+      return tuning.previewBubbleColorId ?? state.victoryBubbleColorId ?? "blue";
+    },
+    applyVictoryPalette: (colorId) => applyActiveVictoryPalette(colorId),
+    clearVictoryPalette: () => clearActiveVictoryPalette(),
+    colors,
+    winCinematicTuning,
+  }),
+});
 
 const lightDebugUi = createLightDebugUiController({
   elements: {
@@ -569,6 +763,7 @@ const roundState = createRoundStateController({
   burstSystem,
   victoryRainSystem,
   onPlayPopAudio: () => gameAudio.playRandomPopAudio(),
+  onResetVictoryPop: resetVictoryPopState,
 });
 
 const homeScreenController = createHomeScreenController({
@@ -636,10 +831,14 @@ const sessionFlow = createSessionFlowController({
   onHideHomeScreen: hideHomeScreen,
   onShowHomeCenterTip: showHomeCenterTip,
   onSetLevelTestSelection: setLevelTestSelection,
-  onUpdateStepsHud: updateStepsHud,
+  onUpdateStepsHud: () => {
+    updateStepsHud();
+    updateGoalsHud();
+  },
   onClearQueuedSelections: clearQueuedSelections,
   onPlayOutOfMovesBanner: playOutOfMovesBanner,
   onClearBoardEntities: clearBoardEntities,
+  onResetVictoryPop: resetVictoryPopState,
   onPersistLevelProgress: persistLevelProgress,
   onBackHomeFromResult: backHomeFromResult,
   onAfterLevelLoaded: (index, level) => {
@@ -650,12 +849,16 @@ const sessionFlow = createSessionFlowController({
     setGameplayRulesPanelVisible(true);
     const gridSize = level.gridSize ?? 3;
     const hasMechanisms = Array.isArray(level.mechanisms) && level.mechanisms.length > 0;
+    const isRetain = level.winMode === "retain";
     const tip = index === 0
       ? `第1关：${gridSize}×${gridSize}，捏碎泡泡会给四周染色！`
       : hasMechanisms
         ? `第${index + 1}关：带箭头的机制泡泡被染色后，会沿箭头方向传播颜色`
-        : `第${index + 1}关：${gridSize}×${gridSize}，让剩下泡泡颜色一致`;
-    gameUI.showCommentary(tip, hasMechanisms ? 3200 : index === 0 ? 2800 : 2200);
+        : isRetain
+          ? `第${index + 1}关：${gridSize}×${gridSize}，让场上泡泡数量与顶部目标一致`
+          : `第${index + 1}关：${gridSize}×${gridSize}，让剩下泡泡颜色一致`;
+    const duration = hasMechanisms ? 3200 : index === 0 ? 2800 : 2200;
+    gameUI.showCommentary(tip, duration);
     void warmupBubbleRenderer({ renderer, scene, camera, fruits });
   },
   createBubbleEntity: ({
@@ -812,10 +1015,17 @@ function createGameRuntime() {
       state.pointerDown = false;
       state.pressTarget = null;
       state.pressAwaitRelease = false;
+      resetVictoryPopState();
     },
-    onVictoryFxStart: () => {},
-    onVictoryFxUpdate: () => {},
+    onVictoryFxStart: () => {
+      applyActiveVictoryPalette(state.victoryBubbleColorId);
+      victoryPresentation.start({ gridBoardSystem });
+    },
+    onVictoryFxUpdate: (dt) => {
+      victoryPresentation.update(dt, { scene });
+    },
     onShowLevelWinOverlay: (current, next) => {
+      victoryPresentation.stop();
       refundStaminaOnWin();
       const nextLevelIndex = Math.max(0, next - 1);
       const reward = getLevelWinReward(current - 1);
@@ -836,6 +1046,8 @@ function createGameRuntime() {
     },
     onHideLevelWinOverlay: () => {
       gameUI.closeSimpleLevelWin();
+      victoryPresentation.reset({ scene });
+      clearActiveVictoryPalette();
     },
     onContinueToLevel: (nextLevelIndex) => {
       victoryRainSystem.reset();
@@ -844,8 +1056,15 @@ function createGameRuntime() {
     showCommentary: (text, durationMs) => {
       gameUI.showCommentary(text, durationMs);
     },
-    clearDelayMs: 500,
-    overlayDelaySec: 0,
+    showVictoryCommentary: (text, durationMs) => {
+      const usePalette = winCinematicTuning.get().useBubblePalette !== false;
+      gameplayTip.show(text, durationMs, { victoryPalette: usePalette });
+    },
+    getClearDelayMs: () => winCinematicTuning.get().clearDelayMs,
+    getOverlayDelaySec: () => winCinematicTuning.get().overlayDelaySec,
+    getCommentaryDurationMs: () => winCinematicTuning.get().commentaryDurationMs,
+    clearDelayMs: 250,
+    overlayDelaySec: 0.85,
   });
 
   const levelRuntime = createLevelRuntime({
@@ -1060,7 +1279,7 @@ function bindGameplaySettingsMenu() {
   settingsUi.bindGameplaySettingsMenu();
 }
 
-function clearGameplayDataOnly() {
+function clearGameplayDataOnly(options = {}) {
   const wasInGameplay = state.started || !state.inHome;
   hideGameplayIntroModal();
 
@@ -1111,7 +1330,8 @@ function clearGameplayDataOnly() {
     renderHomeScreen();
   }
 
-  gameUI.showCommentary("已清除数据，从第一关重新开始。", 1600);
+  const commentary = options.commentary ?? "已清除数据，从第一关重新开始。";
+  gameUI.showCommentary(commentary, 1600);
 }
 
 function bindHomeSettingsModal() {
@@ -1412,7 +1632,7 @@ function openOutOfMovesContinueModal() {
   if (!outOfMovesContinueMaskEl || !outOfMovesContinueModalEl || !outOfMovesContinueBuyEl || !outOfMovesContinueCloseEl) {
     state.outOfMovesContinuePending = false;
     state.levelTransitioning = false;
-    endGame(`Level ${state.currentLevelIndex + 1} failed: out of moves`);
+    beginDeferredLosePresentation();
     return;
   }
   syncOutOfMovesContinueModalUi();
@@ -1426,7 +1646,7 @@ function resolveOutOfMovesAsLose() {
   hideOutOfMovesContinueModal();
   state.outOfMovesContinuePending = false;
   state.levelTransitioning = false;
-  endGame(`Level ${state.currentLevelIndex + 1} failed: out of moves`);
+  beginDeferredLosePresentation();
 }
 
 function continueAfterOutOfMoves() {
@@ -1461,9 +1681,10 @@ function triggerOutOfMovesContinueFlow() {
   state.levelTransitioning = true;
   clearQueuedSelections();
   playOutOfMovesBanner(() => {
-    if (state.gameOver) return;
+    state.outOfMovesHandling = false;
     state.levelTransitioning = false;
-    endGame(`第 ${state.currentLevelIndex + 1} 关失败：步数用尽`, { showOutOfMovesBanner: false });
+    if (state.gameOver) return;
+    beginDeferredLosePresentation();
   });
 }
 
@@ -1544,6 +1765,7 @@ function setGameHudVisible(visible) {
 }
 
 function clearBoardEntities() {
+  resetVictoryPopState();
   bubbleSpawnSystem.reset();
   gridBoardSystem.clear();
   roundState.clearBoardEntities();
@@ -1621,8 +1843,10 @@ function init() {
   bindOutOfMovesContinueModal();
   bindGameplayIntroModal();
   gameUI.closeResult();
+  setupDevLocale();
   setupLevelTestControls();
   setupLightDebugControls();
+  setupWinCinematicDebugControls();
 
   window.addEventListener("resize", resize);
   if (window.visualViewport) {
@@ -1641,6 +1865,25 @@ function setupLightDebugControls() {
   lightDebugUi.bind();
 }
 
+function setupWinCinematicDebugControls() {
+  winCinematicDebugUi.bindUi();
+}
+
+function refreshIndexDebugLocale() {
+  applyDomI18n(document);
+  const addCoinsBtn = document.getElementById("level-test-add-coins");
+  if (addCoinsBtn) addCoinsBtn.textContent = t("index.debug.addCoins");
+}
+
+function setupDevLocale() {
+  const mount = document.getElementById("dev-locale-mount");
+  if (mount) {
+    mountLocaleToggle(mount, { onChange: refreshIndexDebugLocale });
+  }
+  setDocumentLang();
+  refreshIndexDebugLocale();
+}
+
 function setupLevelTestControls() {
   if (!levelTestToggleBtn || !levelTestPanelEl || !levelTestSelectEl) {
     return;
@@ -1654,7 +1897,7 @@ function setupLevelTestControls() {
       addCoinsBtn.id = "level-test-add-coins";
       addCoinsBtn.className = "tool-btn";
       addCoinsBtn.type = "button";
-      addCoinsBtn.textContent = "Test +50 Coins";
+      addCoinsBtn.textContent = t("index.debug.addCoins");
       host.insertBefore(addCoinsBtn, levelTestToggleBtn);
     }
   }
@@ -1686,16 +1929,16 @@ function setupLevelTestControls() {
   addCoinsBtn?.addEventListener("click", () => {
     gameAudio.playUiClickAudio();
     addCoins(50);
-    gameUI.showCommentary("Test: +50 coins added", 1200);
+    gameUI.showCommentary(t("index.debug.coinsAdded"), 1200);
   });
 
   clearDataTestBtn?.addEventListener("click", () => {
     gameAudio.playUiClickAudio();
     const ok = typeof window !== "undefined"
-      ? window.confirm("清除关卡进度、金币和设置数据？")
+      ? window.confirm(t("index.debug.clearConfirm"))
       : true;
     if (!ok) return;
-    clearGameplayDataOnly();
+    clearGameplayDataOnly({ commentary: t("index.debug.dataCleared") });
   });
 }
 
@@ -1715,7 +1958,7 @@ function jumpToLevelForTest(index) {
 
   loadLevel(index);
   if (levelTestPanelEl) levelTestPanelEl.classList.add("hidden");
-  gameUI.showCommentary(`Test mode: switched to Level ${index + 1}`, 1400);
+  gameUI.showCommentary(t("index.debug.levelSwitched", { n: index + 1 }), 1400);
 }
 
 async function setupRenderer() {
@@ -1829,7 +2072,7 @@ function resetFruits(level) {
 }
 
 function onPointerDown(ev) {
-  if (!state.resourcesReady || !state.started || state.gameOver || state.levelTransitioning || state.gameplayIntroOpen || !renderer) return;
+  if (!state.resourcesReady || !state.started || state.gameOver || state.levelTransitioning || state.victoryPopActive || state.defeatPopActive || state.gameplayIntroOpen || !renderer) return;
   if (state.pressAwaitRelease) return;
   if (state.stepLimit > 0 && state.stepsUsed >= state.stepLimit) {
     gameUI.showCommentary("Out of moves for this level.", 1000);
@@ -1885,6 +2128,7 @@ function tick() {
     onPop: () => gameAudio.playRandomPopAudio(),
     onBurst: (fruit, burstDir) => {
       colorUnifySystem.applyPop({ source: fruit, fruits, colors });
+      popWaveSystem.triggerCrossWave(fruit, fruits);
       fruit.pop(burstDir, 2.4);
     },
   });
@@ -1893,6 +2137,15 @@ function tick() {
   updateHomeBubbles(dt);
   if (state.inHome && wallNow - state.staminaUiSyncAt >= 1000) {
     syncStaminaUi();
+  }
+
+  if (victoryPopSequence.hasStarted()) {
+    victoryPopSequence.update(dt, {
+      onPop: (fruit) => {
+        fruit.pop(burstDirForFruit(fruit), 2.4);
+        gameAudio.playRandomPopAudio();
+      },
+    });
   }
 
   burstSystem.update(dt);
@@ -1907,11 +2160,71 @@ function tick() {
 
   bubbleSpawnSystem.update(dt);
 
+  if (state.started && !state.inHome) {
+    updateGoalsHud();
+  }
+
   renderer.render(scene, camera);
 
-  const winConditionMet = colorUnifySystem.isBoardUnified(fruits) || remaining === 0;
-  const levelClearSignal = winConditionMet ? 0 : remaining;
-  if (levelFlow.updateLevelClear(now, levelClearSignal)) return;
+  const winMode = normalizeWinMode(state.winMode);
+  const winEval = evaluateLevelWin({
+    winMode,
+    retainTargets: state.retainTargets,
+    fruits,
+    isBoardUnified: () => colorUnifySystem.isBoardUnified(fruits),
+  });
+
+  if (
+    winEval.kind === "unify"
+    && remaining > 0
+    && !victoryPopSequence.hasStarted()
+    && !state.gameOver
+    && !state.defeatPopActive
+  ) {
+    captureVictoryBubbleColorId(fruits);
+    victoryPopSequence.start(fruits);
+    state.victoryPopActive = true;
+    state.pointerDown = false;
+    state.pressAwaitRelease = false;
+    roundState.clearQueuedSelections();
+  }
+
+  if (state.gameOver) {
+    if (state.defeatPopActive && victoryPopSequence.isComplete() && remaining === 0) {
+      state.defeatPopActive = false;
+      if (state.defeatModalDelayRemaining <= 0) {
+        scheduleDefeatModalDelay();
+      }
+    }
+    if (state.defeatModalDelayRemaining > 0) {
+      state.defeatModalDelayRemaining = Math.max(0, state.defeatModalDelayRemaining - dt);
+      if (state.defeatModalDelayRemaining <= 0) {
+        openDefeatModal();
+        return;
+      }
+    }
+  }
+
+  const winConditionMet = winMode === "retain"
+    ? winEval.met
+    : (winEval.met || remaining === 0);
+  let levelClearSignal = remaining;
+  if (victoryPopSequence.hasStarted()) {
+    const victoryPopsDone = victoryPopSequence.isComplete() && remaining === 0;
+    if (victoryPopsDone && !state.defeatPopActive && !state.gameOver) {
+      state.victoryPopActive = false;
+      levelClearSignal = 0;
+    } else if (state.defeatPopActive || state.gameOver || !victoryPopsDone) {
+      levelClearSignal = Math.max(1, remaining);
+    }
+  } else if (winConditionMet && !state.gameOver) {
+    levelClearSignal = 0;
+  }
+
+  if (levelFlow.updateLevelClear(now, levelClearSignal)) {
+    resetVictoryPopState();
+    return;
+  }
 
   if (
     state.started
@@ -1919,6 +2232,7 @@ function tick() {
     && !state.outOfMovesHandling
     && !state.outOfMovesContinuePending
     && !state.levelTransitioning
+    && !state.victoryPopActive
     && state.stepLimit > 0
     && state.stepsUsed >= state.stepLimit
     && !winConditionMet
@@ -1950,6 +2264,46 @@ function updateStepsHud() {
   const remaining = Math.max(0, state.stepLimit - state.stepsUsed);
   stepsEl.textContent = `MOVE:${remaining}`;
   if (hudLevelEl) hudLevelEl.textContent = `LV:${state.currentLevelIndex + 1}`;
+}
+
+function colorHexForHud(colorId) {
+  const def = colors[colorId];
+  if (!def) return "#888888";
+  return `#${def.base.toString(16).padStart(6, "0")}`;
+}
+
+function updateGoalsHud() {
+  if (!hudGoalsEl) return;
+
+  const winMode = normalizeWinMode(state.winMode);
+  const targets = state.retainTargets ?? [];
+  if (winMode !== "retain" || !targets.length || !state.started || state.inHome) {
+    hudGoalsEl.classList.add("hidden");
+    hudGoalsEl.innerHTML = "";
+    return;
+  }
+
+  hudGoalsEl.classList.remove("hidden");
+  const counts = countActiveByColor(fruits);
+  hudGoalsEl.innerHTML = "";
+
+  for (const target of targets) {
+    const current = counts.get(target.colorId) ?? 0;
+    const chip = document.createElement("div");
+    chip.className = "hud-goal-chip";
+    if (current === target.count) chip.classList.add("is-met");
+
+    const swatch = document.createElement("span");
+    swatch.className = "hud-goal-swatch";
+    swatch.style.background = colorHexForHud(target.colorId);
+
+    const value = document.createElement("span");
+    value.className = "hud-goal-value";
+    value.textContent = `${current}/${target.count}`;
+
+    chip.append(swatch, value);
+    hudGoalsEl.appendChild(chip);
+  }
 }
 
 function screenToWorld(clientX, clientY) {

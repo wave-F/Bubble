@@ -5,3 +5,6 @@
 @import "./styles/05-responsive.css";
 @import "./styles/06-misc.css";
 @import "./styles/07-loading.css";
+@import "./styles/08-dev-locale.css";
+@import "./styles/09-victory-presentation.css";
+@import "./styles/10-win-cinematic-debug.css";

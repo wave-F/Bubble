@@ -13,31 +13,12 @@
       "gridVerticalOffset": 0.2,
       "seed": 41113,
       "fruitCount": 9,
-      "colorIds": [
-        1,
-        3
-      ],
+      "colorIds": [1, 3],
       "colorCounts": [
-        {
-          "colorId": 1,
-          "count": 4
-        },
-        {
-          "colorId": 3,
-          "count": 5
-        }
+        { "colorId": 1, "count": 4 },
+        { "colorId": 3, "count": 5 }
       ],
-      "cells": [
-        3,
-        3,
-        1,
-        3,
-        1,
-        3,
-        1,
-        3,
-        1
-      ],
+      "cells": [3, 3, 1, 3, 1, 3, 1, 3, 1],
       "mechanisms": [],
       "stepLimit": 3
     },
@@ -53,31 +34,13 @@
       "gridVerticalOffset": 0.2,
       "seed": 41226,
       "fruitCount": 9,
-      "colorIds": [
-        1,
-        3
-      ],
+      "colorIds": [1, 3],
       "colorCounts": [
-        {
-          "colorId": 1,
-          "count": 5
-        },
-        {
-          "colorId": 3,
-          "count": 4
-        }
+        { "colorId": 1, "count": 5 },
+        { "colorId": 3, "count": 4 }
       ],
-      "cells": [
-        3,
-        1,
-        3,
-        1,
-        1,
-        1,
-        3,
-        1,
-        3
-      ],
+      "cells": [3, 1, 3, 1, 1, 1, 3, 1, 3],
+      "mechanisms": [],
       "stepLimit": 2
     },
     {
@@ -92,38 +55,12 @@
       "gridVerticalOffset": 0.2,
       "seed": 42339,
       "fruitCount": 16,
-      "colorIds": [
-        1,
-        3
-      ],
+      "colorIds": [1, 3],
       "colorCounts": [
-        {
-          "colorId": 1,
-          "count": 10
-        },
-        {
-          "colorId": 3,
-          "count": 6
-        }
+        { "colorId": 1, "count": 10 },
+        { "colorId": 3, "count": 6 }
       ],
-      "cells": [
-        3,
-        1,
-        1,
-        3,
-        1,
-        3,
-        1,
-        3,
-        3,
-        1,
-        3,
-        1,
-        1,
-        1,
-        1,
-        1
-      ],
+      "cells": [3, 1, 1, 3, 1, 3, 1, 3, 3, 1, 3, 1, 1, 1, 1, 1],
       "mechanisms": [],
       "stepLimit": 3
     },
@@ -139,43 +76,14 @@
       "gridVerticalOffset": 0.2,
       "seed": 70011,
       "fruitCount": 16,
-      "colorIds": [
-        2,
-        3,
-        5
-      ],
+      "colorIds": [2, 3, 5],
       "colorCounts": [
-        {
-          "colorId": 2,
-          "count": 4
-        },
-        {
-          "colorId": 3,
-          "count": 8
-        },
-        {
-          "colorId": 5,
-          "count": 4
-        }
+        { "colorId": 2, "count": 4 },
+        { "colorId": 3, "count": 8 },
+        { "colorId": 5, "count": 4 }
       ],
-      "cells": [
-        3,
-        5,
-        5,
-        3,
-        2,
-        3,
-        3,
-        2,
-        5,
-        2,
-        2,
-        5,
-        3,
-        3,
-        3,
-        3
-      ],
+      "cells": [3, 5, 5, 3, 2, 3, 3, 2, 5, 2, 2, 5, 3, 3, 3, 3],
+      "mechanisms": [],
       "stepLimit": 4
     },
     {
@@ -190,43 +98,14 @@
       "gridVerticalOffset": 0.2,
       "seed": 97913,
       "fruitCount": 16,
-      "colorIds": [
-        1,
-        2,
-        4
-      ],
+      "colorIds": [1, 2, 4],
       "colorCounts": [
-        {
-          "colorId": 1,
-          "count": 5
-        },
-        {
-          "colorId": 2,
-          "count": 5
-        },
-        {
-          "colorId": 4,
-          "count": 6
-        }
+        { "colorId": 1, "count": 5 },
+        { "colorId": 2, "count": 5 },
+        { "colorId": 4, "count": 6 }
       ],
-      "cells": [
-        1,
-        4,
-        2,
-        4,
-        4,
-        1,
-        4,
-        1,
-        2,
-        4,
-        2,
-        2,
-        2,
-        1,
-        4,
-        1
-      ],
+      "cells": [1, 4, 2, 4, 4, 1, 4, 1, 2, 4, 2, 2, 2, 1, 4, 1],
+      "mechanisms": [],
       "stepLimit": 5
     },
     {
@@ -241,49 +120,97 @@
       "gridVerticalOffset": 0.2,
       "seed": 42001,
       "fruitCount": 16,
-      "colorIds": [
-        1,
-        3
-      ],
+      "colorIds": [1, 3],
       "colorCounts": [
-        {
-          "colorId": 1,
-          "count": 6
-        },
-        {
-          "colorId": 3,
-          "count": 10
-        }
+        { "colorId": 1, "count": 6 },
+        { "colorId": 3, "count": 10 }
       ],
-      "cells": [
-        3,
-        1,
-        3,
-        1,
-        1,
-        3,
-        3,
-        3,
-        3,
-        1,
-        3,
-        1,
-        1,
-        3,
-        3,
-        3
-      ],
+      "cells": [3, 1, 3, 1, 1, 3, 3, 3, 3, 1, 3, 1, 1, 3, 3, 3],
       "mechanisms": [
-        {
-          "index": 5,
-          "direction": "right"
-        },
-        {
-          "index": 13,
-          "direction": "right"
-        }
+        { "index": 5, "direction": "right" },
+        { "index": 13, "direction": "right" }
       ],
       "stepLimit": 4
+    },
+    {
+      "id": 7,
+      "name": "分拣-01",
+      "difficulty": "easy",
+      "homeBubbleColorId": 0,
+      "gridSize": 4,
+      "gridCellSize": 0.95,
+      "gridBubbleFill": 0.82,
+      "gridVerticalAlign": "center",
+      "gridVerticalOffset": 0.2,
+      "seed": 61001,
+      "fruitCount": 16,
+      "winMode": "retain",
+      "retainTargets": [
+        { "colorId": 3, "count": 2 },
+        { "colorId": 0, "count": 1 }
+      ],
+      "colorIds": [0, 3],
+      "colorCounts": [
+        { "colorId": 0, "count": 8 },
+        { "colorId": 3, "count": 8 }
+      ],
+      "cells": [3, 0, 3, 0, 0, 3, 0, 3, 3, 0, 3, 0, 0, 3, 0, 3],
+      "mechanisms": [],
+      "stepLimit": 14
+    },
+    {
+      "id": 8,
+      "name": "分拣-02",
+      "difficulty": "easy",
+      "homeBubbleColorId": 3,
+      "gridSize": 4,
+      "gridCellSize": 0.95,
+      "gridBubbleFill": 0.82,
+      "gridVerticalAlign": "center",
+      "gridVerticalOffset": 0.2,
+      "seed": 71002,
+      "fruitCount": 16,
+      "winMode": "retain",
+      "retainTargets": [
+        { "colorId": 3, "count": 1 },
+        { "colorId": 0, "count": 1 },
+        { "colorId": 5, "count": 2 }
+      ],
+      "colorIds": [0, 3, 5],
+      "colorCounts": [
+        { "colorId": 0, "count": 6 },
+        { "colorId": 3, "count": 5 },
+        { "colorId": 5, "count": 5 }
+      ],
+      "cells": [3, 0, 5, 5, 0, 3, 0, 5, 5, 3, 0, 3, 0, 5, 3, 0],
+      "mechanisms": [],
+      "stepLimit": 13
+    },
+    {
+      "id": 9,
+      "name": "分拣-03",
+      "difficulty": "medium",
+      "homeBubbleColorId": 3,
+      "gridSize": 4,
+      "gridCellSize": 0.95,
+      "gridBubbleFill": 0.82,
+      "gridVerticalAlign": "center",
+      "gridVerticalOffset": 0.2,
+      "seed": 81003,
+      "fruitCount": 16,
+      "winMode": "retain",
+      "retainTargets": [
+        { "colorId": 3, "count": 2 },
+        { "colorId": 5, "count": 3 }
+      ],
+      "colorIds": [3, 5],
+      "colorCounts": [
+        { "colorId": 3, "count": 8 },
+        { "colorId": 5, "count": 8 }
+      ],
+      "cells": [3, 5, 3, 5, 5, 3, 5, 3, 3, 5, 3, 5, 5, 3, 5, 3],
+      "mechanisms": [],
+      "stepLimit": 12
     }
   ]
 }

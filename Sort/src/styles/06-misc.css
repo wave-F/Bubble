@@ -42,7 +42,10 @@
 
 #level-win h2 {
   margin: 0;
+  max-width: 88%;
   font-size: clamp(34px, 8.8vw, 52px);
+  font-weight: 900;
+  line-height: 1.15;
   letter-spacing: 0.06em;
   text-shadow: 0 6px 16px rgba(92, 178, 255, 0.35);
 }

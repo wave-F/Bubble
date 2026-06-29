@@ -21,6 +21,28 @@ export function createColorUnifySystem() {
     return null;
   }
 
+  function findGridNeighborFruits(source, fruits) {
+    const col = source.gridCol;
+    const row = source.gridRow;
+    if (!Number.isInteger(col) || !Number.isInteger(row) || col < 0 || row < 0) {
+      return [];
+    }
+
+    const neighbors = [];
+    for (const fruit of fruits) {
+      if (!isActiveFruit(fruit) || fruit === source) continue;
+      if (!Number.isInteger(fruit.gridCol) || !Number.isInteger(fruit.gridRow)) continue;
+
+      const dc = Math.abs(fruit.gridCol - col);
+      const dr = Math.abs(fruit.gridRow - row);
+      if ((dc === 1 && dr === 0) || (dc === 0 && dr === 1)) {
+        neighbors.push(fruit);
+      }
+    }
+
+    return neighbors;
+  }
+
   function getGridSize(fruits) {
     let maxCol = -1;
     let maxRow = -1;
@@ -210,5 +232,6 @@ export function createColorUnifySystem() {
     clear,
     hasPendingDyes,
     isBoardUnified,
+    findGridNeighborFruits,
   };
 }

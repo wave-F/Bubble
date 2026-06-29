@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-i18n-title="editor.pageTitle">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>染色关卡编辑器</title>
+    <link rel="stylesheet" href="./src/styles/08-dev-locale.css" />
     <style>
       :root {
         --bg: #f4f8fc;
@@ -444,6 +445,39 @@
         margin-bottom: 10px;
       }
 
+      .retain-targets-panel.hidden { display: none; }
+
+      .retain-targets-hint {
+        margin: 0 0 10px;
+        font-size: 12px;
+        color: #5a6d82;
+      }
+
+      .retain-targets {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .retain-target-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .retain-target-swatch {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .retain-target-row input {
+        width: 100%;
+        min-width: 0;
+      }
+
       @media (max-width: 860px) {
         .layout { grid-template-columns: 1fr; }
         .cell { width: 48px; height: 48px; }
@@ -452,33 +486,38 @@
   </head>
   <body>
     <div class="wrap">
-      <h1>染色关卡编辑器</h1>
-      <p class="sub">先用「涂色」单击格子画颜色，再切到「机制泡泡」单击加箭头。导出 JSON 会包含 <code>cells</code> 和 <code>mechanisms</code>。</p>
+      <div class="level-editor-header">
+        <div class="level-editor-header-text">
+          <h1 data-i18n="editor.heading">染色关卡编辑器</h1>
+          <p class="sub">先用「涂色」单击格子画颜色，再切到「机制泡泡」单击加箭头。导出 JSON 会包含 <code>cells</code> 和 <code>mechanisms</code>。</p>
+        </div>
+        <div id="editor-locale-mount"></div>
+      </div>
 
       <div class="layout">
         <section class="panel">
-          <h2>关卡参数</h2>
+          <h2 data-i18n="editor.section.params">关卡参数</h2>
           <div class="level-tabs-row">
             <div class="level-tabs" id="level-tabs"></div>
             <button id="btn-add-level" type="button">+ 新建关卡</button>
           </div>
           <div class="field">
-            <label for="level-name">名称</label>
+            <label for="level-name" data-i18n="editor.label.name">名称</label>
             <input id="level-name" type="text" value="染色-01" />
           </div>
           <div class="row-2">
             <div class="field">
-              <label for="level-id">ID</label>
+              <label for="level-id" data-i18n="editor.label.id">ID</label>
               <input id="level-id" type="number" min="1" value="1" />
             </div>
             <div class="field">
-              <label for="step-limit">步数上限</label>
+              <label for="step-limit" data-i18n="editor.label.stepLimit">步数上限</label>
               <input id="step-limit" type="number" min="1" value="7" />
             </div>
           </div>
           <div class="row-2">
             <div class="field">
-              <label for="grid-size">棋盘</label>
+              <label for="grid-size" data-i18n="editor.label.grid">棋盘</label>
               <select id="grid-size">
                 <option value="3" selected>3 × 3</option>
                 <option value="4">4 × 4</option>
@@ -486,13 +525,25 @@
               </select>
             </div>
             <div class="field">
-              <label for="difficulty">难度</label>
+              <label for="difficulty" data-i18n="editor.label.difficulty">难度</label>
               <select id="difficulty">
                 <option value="easy" selected>easy</option>
                 <option value="medium">medium</option>
                 <option value="hard">hard</option>
               </select>
             </div>
+          </div>
+          <div class="field">
+            <label for="win-mode" data-i18n="editor.label.winMode">过关方式</label>
+            <select id="win-mode">
+              <option value="unify" selected data-i18n="editor.winMode.unify">统一颜色</option>
+              <option value="retain" data-i18n="editor.winMode.retain">分拣目标（保留数量）</option>
+            </select>
+          </div>
+          <div id="retain-targets-panel" class="retain-targets-panel hidden">
+            <h2 data-i18n="editor.section.retainTargets">分拣目标</h2>
+            <p class="sub retain-targets-hint" data-i18n="editor.retainTargets.hint">填写需要留在场上的泡泡数量（0 表示不要求该颜色）。</p>
+            <div id="retain-targets" class="retain-targets"></div>
           </div>
 
           <h2>编辑工具</h2>
@@ -510,10 +561,10 @@
           </div>
 
           <div class="actions">
-            <button id="btn-fill-seed" type="button">用 seed 填充</button>
-            <button id="btn-clear" type="button">清空棋盘</button>
+            <button id="btn-fill-seed" type="button" data-i18n="editor.btn.fillSeed">用 seed 填充</button>
+            <button id="btn-clear" type="button" data-i18n="editor.btn.clear">清空棋盘</button>
             <button id="btn-clear-mechanisms" type="button">清除箭头</button>
-            <button id="btn-load-file" type="button">导入 JSON</button>
+            <button id="btn-load-file" type="button" data-i18n="editor.btn.loadFile">导入 JSON</button>
           </div>
           <input id="file-input" type="file" accept="application/json,.json" hidden />
 
@@ -521,21 +572,21 @@
         </section>
 
         <section class="panel">
-          <h2>棋盘</h2>
+          <h2 data-i18n="editor.section.board">棋盘</h2>
           <div class="grid-wrap">
             <div class="grid" id="grid"></div>
           </div>
           <div class="actions">
-            <button id="btn-playtest" class="primary" type="button">试玩本关</button>
-            <button id="btn-solve" type="button">计算最优步数</button>
+            <button id="btn-playtest" class="primary" type="button" data-i18n="editor.btn.playtest">试玩本关</button>
+            <button id="btn-solve" type="button" data-i18n="editor.btn.solve">计算最优步数</button>
           </div>
 
-          <h2>导出</h2>
+          <h2 data-i18n="editor.section.export">导出</h2>
           <div class="actions">
-            <button id="btn-save" class="primary" type="button">保存到关卡文件</button>
-            <button id="btn-export" type="button">更新 JSON 预览</button>
-            <button id="btn-copy" type="button">复制当前关卡</button>
-            <button id="btn-download" type="button">下载 levels.json</button>
+            <button id="btn-save" class="primary" type="button" data-i18n="editor.btn.save">保存到关卡文件</button>
+            <button id="btn-export" type="button" data-i18n="editor.btn.export">更新 JSON 预览</button>
+            <button id="btn-copy" type="button" data-i18n="editor.btn.copy">复制当前关卡</button>
+            <button id="btn-download" type="button" data-i18n="editor.btn.download">下载 levels.json</button>
           </div>
           <textarea id="export-json" readonly placeholder="点击「更新 JSON 预览」"></textarea>
         </section>
@@ -544,26 +595,26 @@
 
     <div id="playtest-overlay" class="playtest-overlay hidden" aria-hidden="true">
       <button id="playtest-backdrop" class="playtest-backdrop" type="button" aria-label="关闭试玩"></button>
-      <div class="playtest-dialog" role="dialog" aria-modal="true" aria-label="关卡试玩">
+      <div class="playtest-dialog" role="dialog" aria-modal="true" data-i18n-aria="playtest.dialogAria">
         <div class="playtest-head">
-          <h2 id="playtest-title">试玩</h2>
-          <button id="playtest-close" class="playtest-close" type="button" aria-label="关闭">×</button>
+          <h2 id="playtest-title" data-i18n="playtest.title">试玩</h2>
+          <button id="playtest-close" class="playtest-close" type="button" data-i18n-aria="playtest.closeAria">×</button>
         </div>
-        <p id="playtest-status" class="playtest-status" data-state="playing">点击泡泡捏碎：自己消失，四邻染成源色</p>
-        <p id="playtest-optimal" class="playtest-optimal">最优步数：—</p>
-        <p id="playtest-steps" class="playtest-steps">剩余步数：0 / 0</p>
+        <p id="playtest-status" class="playtest-status" data-state="playing" data-i18n="playtest.status.playing">点击泡泡捏碎：自己消失，四邻染成源色</p>
+        <p id="playtest-optimal" class="playtest-optimal">—</p>
+        <p id="playtest-steps" class="playtest-steps">0 / 0</p>
         <div class="playtest-grid-wrap">
           <div id="playtest-grid" class="playtest-grid"></div>
         </div>
         <div class="actions playtest-preview-actions">
-          <button id="playtest-preview" type="button">解法预览</button>
-          <button id="playtest-preview-play" type="button">自动播放</button>
-          <button id="playtest-preview-step" type="button">下一步</button>
-          <button id="playtest-preview-stop" type="button">停止预览</button>
+          <button id="playtest-preview" type="button" data-i18n="playtest.btn.preview">解法预览</button>
+          <button id="playtest-preview-play" type="button" data-i18n="playtest.btn.previewPlay">自动播放</button>
+          <button id="playtest-preview-step" type="button" data-i18n="playtest.btn.previewStep">下一步</button>
+          <button id="playtest-preview-stop" type="button" data-i18n="playtest.btn.previewStop">停止预览</button>
         </div>
         <div class="actions">
-          <button id="playtest-restart" type="button">重来</button>
-          <button id="playtest-close-footer" type="button">关闭</button>
+          <button id="playtest-restart" type="button" data-i18n="playtest.btn.restart">重来</button>
+          <button id="playtest-close-footer" type="button" data-i18n="playtest.btn.close">关闭</button>
         </div>
       </div>
     </div>

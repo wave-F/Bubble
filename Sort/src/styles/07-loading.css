@@ -78,6 +78,7 @@
 
 html.is-boot-loading #phone-frame,
 html.is-boot-loading #level-test,
-html.is-boot-loading #light-debug {
+html.is-boot-loading #light-debug,
+html.is-boot-loading #win-cinematic-debug {
   visibility: hidden;
 }

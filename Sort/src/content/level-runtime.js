@@ -216,9 +216,19 @@ export function createLevelRuntime({
       verticalOffset: gridVerticalOffset,
     });
 
+    const winMode = level.winMode === "retain" ? "retain" : "unify";
+    const retainTargets = winMode === "retain" && Array.isArray(level.retainTargets)
+      ? level.retainTargets.map((item) => ({
+        colorId: Math.floor(item.colorId),
+        count: Math.floor(item.count),
+      })).filter((item) => item.colorId >= 0 && item.count > 0)
+      : [];
+
     return {
       id: level.id,
       name: level.name,
+      winMode,
+      retainTargets,
       gridSize,
       gridCellSize,
       gridBubbleFill,
@@ -256,6 +266,9 @@ export function createLevelRuntime({
       colorCounts: level.colorCounts.map((item) => ({ colorId: item.colorId, count: item.count })),
       mechanisms: Array.isArray(level.mechanisms)
         ? level.mechanisms.map((item) => ({ index: item.index, direction: item.direction }))
+        : [],
+      retainTargets: Array.isArray(level.retainTargets)
+        ? level.retainTargets.map((item) => ({ colorId: item.colorId, count: item.count }))
         : [],
       fruits: level.fruits.map((fruit) => ({
         x: fruit.x,

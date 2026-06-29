@@ -16,13 +16,18 @@ export function createSimpleLevelWin({ rootEl, titleEl, descEl, actionBtnEl } = 
     if (actionBtnEl) actionBtnEl.textContent = actionText;
     rootEl?.classList.toggle("is-win", variant !== "lose");
     rootEl?.classList.toggle("is-lose", variant === "lose");
+    rootEl?.classList.remove("is-entering");
     onAction = typeof action === "function" ? action : null;
     rootEl?.classList.remove("hidden");
+    if (rootEl) {
+      rootEl.classList.add("is-entering");
+      void rootEl.offsetWidth;
+    }
   }
 
   function close() {
     rootEl?.classList.add("hidden");
-    rootEl?.classList.remove("is-win", "is-lose");
+    rootEl?.classList.remove("is-win", "is-lose", "is-entering");
     onAction = null;
   }
 

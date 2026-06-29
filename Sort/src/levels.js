@@ -65,6 +65,11 @@ function normalizeLevel(rawLevel, index) {
   const cells = normalizeCells(rawLevel?.cells, gridSize);
   const mechanismMap = mechanismsFromLevel(rawLevel, gridSize);
   const mechanisms = mechanismsToLevelList(mechanismMap);
+  const winModeRaw = String(rawLevel?.winMode ?? "unify").toLowerCase();
+  const winMode = winModeRaw === "retain" ? "retain" : "unify";
+  const retainTargets = winMode === "retain"
+    ? normalizeColorCounts(rawLevel?.retainTargets)
+    : [];
 
   return {
     id,
@@ -84,6 +89,8 @@ function normalizeLevel(rawLevel, index) {
     colorCounts,
     cells,
     mechanisms,
+    winMode,
+    retainTargets,
   };
 }
 

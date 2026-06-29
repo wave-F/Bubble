@@ -5,6 +5,7 @@ export function createRoundStateController({
   burstSystem,
   victoryRainSystem,
   onPlayPopAudio,
+  onResetVictoryPop,
 } = {}) {
   function clearQueuedSelections() {
     if (state.pressTarget) {
@@ -36,6 +37,7 @@ export function createRoundStateController({
     burstSystem.clear();
     state.pendingPops.length = 0;
     clearQueuedSelections();
+    onResetVictoryPop?.();
     for (const fruit of fruits) scene.remove(fruit.group);
     fruits.length = 0;
     victoryRainSystem.reset();
