@@ -445,39 +445,6 @@
         margin-bottom: 10px;
       }
 
-      .retain-targets-panel.hidden { display: none; }
-
-      .retain-targets-hint {
-        margin: 0 0 10px;
-        font-size: 12px;
-        color: #5a6d82;
-      }
-
-      .retain-targets {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-      }
-
-      .retain-target-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .retain-target-swatch {
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-      }
-
-      .retain-target-row input {
-        width: 100%;
-        min-width: 0;
-      }
-
       @media (max-width: 860px) {
         .layout { grid-template-columns: 1fr; }
         .cell { width: 48px; height: 48px; }
@@ -532,18 +499,6 @@
                 <option value="hard">hard</option>
               </select>
             </div>
-          </div>
-          <div class="field">
-            <label for="win-mode" data-i18n="editor.label.winMode">过关方式</label>
-            <select id="win-mode">
-              <option value="unify" selected data-i18n="editor.winMode.unify">统一颜色</option>
-              <option value="retain" data-i18n="editor.winMode.retain">分拣目标（保留数量）</option>
-            </select>
-          </div>
-          <div id="retain-targets-panel" class="retain-targets-panel hidden">
-            <h2 data-i18n="editor.section.retainTargets">分拣目标</h2>
-            <p class="sub retain-targets-hint" data-i18n="editor.retainTargets.hint">填写需要留在场上的泡泡数量（0 表示不要求该颜色）。</p>
-            <div id="retain-targets" class="retain-targets"></div>
           </div>
 
           <h2>编辑工具</h2>

@@ -53,17 +53,13 @@ export function formatMechanismsKey(level) {
   return mechanismsToLevelList(map).map((item) => `${item.index}:${item.direction}`).join(";");
 }
 
-function spreadMechanismRay(board, size, mechanisms, visited, row, col, color, queue) {
-  const idx = row * size + col;
-  if (visited.has(idx)) return;
-  visited.add(idx);
+export function spreadRayAlongDirection(board, size, mechanisms, originRow, originCol, direction, color, queue) {
+  const delta = DIRECTION_DELTA[direction];
+  if (!delta) return;
 
-  const direction = mechanisms.get(idx);
-  if (!direction) return;
-
-  const [dr, dc] = DIRECTION_DELTA[direction];
-  let nr = row + dr;
-  let nc = col + dc;
+  const [dr, dc] = delta;
+  let nr = originRow + dr;
+  let nc = originCol + dc;
 
   while (nr >= 0 && nr < size && nc >= 0 && nc < size) {
     const ni = nr * size + nc;
@@ -81,15 +77,31 @@ function spreadMechanismRay(board, size, mechanisms, visited, row, col, color, q
   }
 }
 
+function spreadMechanismRay(board, size, mechanisms, visited, row, col, color, queue) {
+  const idx = row * size + col;
+  if (visited.has(idx)) return;
+  visited.add(idx);
+
+  const direction = mechanisms.get(idx);
+  if (!direction) return;
+
+  spreadRayAlongDirection(board, size, mechanisms, row, col, direction, color, queue);
+}
+
 export function applyPopToBoard(board, size, mechanisms, row, col) {
   const idx = row * size + col;
   if (board[idx] < 0) return null;
 
   const next = board.slice();
   const color = next[idx];
+  const popDirection = mechanisms.get(idx);
   next[idx] = -1;
 
   const queue = [];
+  if (popDirection) {
+    spreadRayAlongDirection(next, size, mechanisms, row, col, popDirection, color, queue);
+  }
+
   for (const [dr, dc] of NEIGHBOR_DIRS) {
     const nr = row + dr;
     const nc = col + dc;

@@ -1,3 +1,5 @@
+import { DIRECTION_DELTA } from "./mechanism-dye-logic.js";
+
 const DEFAULT_STAGGER_SEC = 0.05;
 const DEFAULT_WAVE_RINGS = 1;
 
@@ -43,9 +45,60 @@ function collectWaveRings(source, fruits, maxRings, findGridNeighborFruits) {
   return rings;
 }
 
+function findFruitAt(fruits, col, row) {
+  for (const fruit of fruits) {
+    if (!isGridWaveTarget(fruit)) continue;
+    if (fruit.gridCol === col && fruit.gridRow === row) return fruit;
+  }
+  return null;
+}
+
+function getGridSize(fruits) {
+  let maxCol = -1;
+  let maxRow = -1;
+  for (const fruit of fruits) {
+    if (!isGridWaveTarget(fruit)) continue;
+    if (Number.isInteger(fruit.gridCol)) maxCol = Math.max(maxCol, fruit.gridCol);
+    if (Number.isInteger(fruit.gridRow)) maxRow = Math.max(maxRow, fruit.gridRow);
+  }
+  return Math.max(maxCol, maxRow) + 1;
+}
+
 export function createPopWaveSystem({ findGridNeighborFruits } = {}) {
   if (typeof findGridNeighborFruits !== "function") {
     throw new Error("createPopWaveSystem requires findGridNeighborFruits");
+  }
+
+  function triggerDirectionalWave(source, fruits, options = {}) {
+    const direction = source?.mechanismDirection;
+    if (!direction) {
+      triggerCrossWave(source, fruits, options);
+      return;
+    }
+
+    const delta = DIRECTION_DELTA[direction];
+    if (!delta) return;
+
+    const staggerSec = options.staggerSec ?? DEFAULT_STAGGER_SEC;
+    const gridSize = getGridSize(fruits);
+    const [dr, dc] = delta;
+    let col = source.gridCol + dc;
+    let row = source.gridRow + dr;
+    let step = 0;
+
+    while (col >= 0 && col < gridSize && row >= 0 && row < gridSize) {
+      const fruit = findFruitAt(fruits, col, row);
+      if (fruit) {
+        fruit.playPopWave?.({
+          delay: step * staggerSec,
+          scalePeak: 1.16,
+          scaleDip: 0.84,
+        });
+      }
+      step += 1;
+      col += dc;
+      row += dr;
+    }
   }
 
   function triggerCrossWave(source, fruits, options = {}) {
@@ -76,5 +129,5 @@ export function createPopWaveSystem({ findGridNeighborFruits } = {}) {
     }
   }
 
-  return { triggerCrossWave };
+  return { triggerCrossWave, triggerDirectionalWave };
 }

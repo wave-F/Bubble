@@ -1,5 +1,5 @@
 import { applyPop, boardFromLevel, isBoardUnified } from "./level-editor-solver.js";
-import { isRetainWinMetFromBoard, normalizeWinMode } from "./game/win-conditions.js";
+
 import { applyDomI18n, colorName as localizedColorName, t } from "./i18n/dev-locale.js";
 import { DIRECTION_ARROW, mechanismsFromLevel } from "./systems/mechanism-dye-logic.js";
 
@@ -42,14 +42,9 @@ export function createLevelEditorPlaytest({
       moveIndex: 0,
       timer: null,
     },
-    winMode: "unify",
-    retainTargets: [],
   };
 
   function isWinBoard(board) {
-    if (normalizeWinMode(playState.winMode) === "retain") {
-      return isRetainWinMetFromBoard(board, playState.retainTargets);
-    }
     return isBoardUnified(board);
   }
 
@@ -125,16 +120,12 @@ export function createLevelEditorPlaytest({
     }
 
     if (playState.result === "win") {
-      statusEl.textContent = playState.winMode === "retain"
-        ? t("playtest.status.winRetain")
-        : t("playtest.status.win");
+      statusEl.textContent = t("playtest.status.win");
       statusEl.dataset.state = "win";
       return;
     }
     if (playState.result === "lose") {
-      statusEl.textContent = playState.winMode === "retain"
-        ? t("playtest.status.loseRetain")
-        : t("playtest.status.lose");
+      statusEl.textContent = t("playtest.status.lose");
       statusEl.dataset.state = "lose";
       return;
     }
@@ -310,13 +301,6 @@ export function createLevelEditorPlaytest({
     playState.board = board.slice();
     playState.stepsUsed = 0;
     playState.stepLimit = Math.max(1, Math.floor(level.stepLimit ?? 1));
-    playState.winMode = level.winMode === "retain" ? "retain" : "unify";
-    playState.retainTargets = Array.isArray(level.retainTargets)
-      ? level.retainTargets.map((item) => ({
-        colorId: Math.floor(item.colorId),
-        count: Math.floor(item.count),
-      }))
-      : [];
     playState.ended = isWinBoard(board);
     playState.result = playState.ended ? "win" : null;
     playState.solution = solution ?? { steps: -1, moves: [] };

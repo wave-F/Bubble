@@ -65,32 +65,69 @@ async function handleSaveLevels(req, res) {
   }
 }
 
+const ROOT_RESOLVED = path.resolve(ROOT);
+
+const EDITOR_INDEX = "/tools/level-editor/index.html";
+
+/** Common bookmarks / typos → colour (染色) level editor */
+const PATH_ALIASES = new Map([
+  ["/tools/level-editor", EDITOR_INDEX],
+  ["/level-editor", EDITOR_INDEX],
+  ["/colour-level-editor", EDITOR_INDEX],
+  ["/color-level-editor", EDITOR_INDEX],
+  ["/tools/colour-level-editor", EDITOR_INDEX],
+  ["/tools/color-level-editor", EDITOR_INDEX],
+]);
+
+function isPathInsideRoot(filePath) {
+  return filePath === ROOT_RESOLVED || filePath.startsWith(`${ROOT_RESOLVED}${path.sep}`);
+}
+
+async function resolveStaticPath(pathname) {
+  const candidates = [];
+
+  if (PATH_ALIASES.has(pathname)) {
+    candidates.push(PATH_ALIASES.get(pathname));
+  } else if (pathname === "/") {
+    candidates.push("/index.html");
+  } else if (pathname.endsWith("/")) {
+    candidates.push(`${pathname}index.html`);
+  } else {
+    candidates.push(pathname);
+    if (!path.extname(pathname)) {
+      candidates.push(`${pathname}/index.html`);
+    }
+  }
+
+  for (const candidate of candidates) {
+    const filePath = path.resolve(ROOT_RESOLVED, `.${candidate}`);
+    if (!isPathInsideRoot(filePath)) continue;
+    try {
+      const stat = await fs.stat(filePath);
+      if (stat.isFile()) return { filePath, pathname: candidate };
+    } catch {
+      /* try next */
+    }
+  }
+
+  return null;
+}
+
 async function serveStatic(req, res) {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
-  let pathname = decodeURIComponent(url.pathname);
-  if (pathname === "/") pathname = "/index.html";
-  if (pathname.endsWith("/")) pathname = `${pathname}index.html`;
+  const pathname = decodeURIComponent(url.pathname);
+  const resolved = await resolveStaticPath(pathname);
 
-  const filePath = path.resolve(ROOT, `.${pathname}`);
-  if (!filePath.startsWith(ROOT)) {
-    res.writeHead(403).end("Forbidden");
+  if (!resolved) {
+    res.writeHead(404).end("Not Found");
     return;
   }
 
-  try {
-    const stat = await fs.stat(filePath);
-    if (!stat.isFile()) {
-      res.writeHead(404).end("Not Found");
-      return;
-    }
-
-    const ext = path.extname(filePath).toLowerCase();
-    const data = await fs.readFile(filePath);
-    res.writeHead(200, { "Content-Type": MIME[ext] ?? "application/octet-stream" });
-    res.end(data);
-  } catch {
-    res.writeHead(404).end("Not Found");
-  }
+  const { filePath } = resolved;
+  const ext = path.extname(filePath).toLowerCase();
+  const data = await fs.readFile(filePath);
+  res.writeHead(200, { "Content-Type": MIME[ext] ?? "application/octet-stream" });
+  res.end(data);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -124,6 +161,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`Dev server: http://localhost:${PORT}/`);
   console.log(`Level editor: http://localhost:${PORT}/tools/level-editor/`);
+  console.log(`  (also: /tools/level-editor, /colour-level-editor)`);
   console.log(`Bubble debug: http://localhost:${PORT}/tools/bubble-debug/`);
   console.log(`Save API: POST /api/levels/save -> src/config/levels.json`);
 });

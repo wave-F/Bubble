@@ -162,6 +162,17 @@ export function createColorUnifySystem() {
     spreadVisited.clear();
     const mechanismQueue = [];
 
+    if (source.mechanismDirection) {
+      scheduleRayFromMechanism({
+        mechanism: source,
+        fruits,
+        colors,
+        colorId,
+        colorDef,
+        baseDelayMs: 0,
+      });
+    }
+
     for (const [dr, dc] of NEIGHBOR_DIRS) {
       dyeNeighborNow({
         fruits,

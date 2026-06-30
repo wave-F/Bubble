@@ -4,6 +4,7 @@
   "description": "Grid bubble dye unify game",
     "scripts": {
     "excel:levels": "node ./scripts/convert-levels.mjs",
+    "test:inverse": "node ./scripts/unify-inverse-pop.test.mjs",
     "excel:sync": "node ./scripts/excel-sync.mjs",
     "excel:watch": "node ./scripts/excel-watch.mjs",
     "test": "echo \"Error: no test specified\" && exit 1",

@@ -158,6 +158,7 @@ export function createBubbleEntityClass({
       motionMode = "float",
       gridCol = -1,
       gridRow = -1,
+      gridSize = 0,
       mechanismDirection = null,
     }) {
       this.id = id;
@@ -192,6 +193,7 @@ export function createBubbleEntityClass({
       this.motionMode = motionMode;
       this.gridCol = gridCol;
       this.gridRow = gridRow;
+      this.gridSize = Math.max(0, Math.floor(gridSize));
       this.mechanismDirection = mechanismDirection;
       this.idlePhase = Math.random() * Math.PI * 2;
       this.idleFrequency = 1.5 + Math.random() * 1.6;

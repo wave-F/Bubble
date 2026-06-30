@@ -1,4 +1,42 @@
 import * as THREE from "three/webgpu";
+import { DIRECTION_DELTA } from "./mechanism-dye-logic.js";
+
+const workAxis = new THREE.Vector3();
+const workLateral = new THREE.Vector3();
+const workOrigin = new THREE.Vector3();
+
+function gridDirectionToWorld(direction, target = workAxis) {
+  switch (direction) {
+    case "right":
+      return target.set(1, 0, 0);
+    case "left":
+      return target.set(-1, 0, 0);
+    case "up":
+      return target.set(0, 1, 0);
+    case "down":
+      return target.set(0, -1, 0);
+    default:
+      return target.set(0, 1, 0);
+  }
+}
+
+function countRaySteps(entity) {
+  const direction = entity.mechanismDirection;
+  const size = entity.gridSize > 0 ? entity.gridSize : 8;
+  const delta = DIRECTION_DELTA[direction];
+  if (!delta) return 0;
+
+  const [dr, dc] = delta;
+  let steps = 0;
+  let row = entity.gridRow + dr;
+  let col = entity.gridCol + dc;
+  while (row >= 0 && row < size && col >= 0 && col < size) {
+    steps += 1;
+    row += dr;
+    col += dc;
+  }
+  return steps;
+}
 
 export function createBurstSystem({
   scene,
@@ -55,59 +93,124 @@ export function createBurstSystem({
     pool.initialized = true;
   }
 
-  function spawnForEntity(entity) {
-    ensurePool();
+  function claimPoolEntry() {
+    for (let j = 0; j < pool.entries.length; j += 1) {
+      if (!pool.entries[j].active) return pool.entries[j];
+    }
+    return null;
+  }
 
+  function activateBurstEntry(entity, entry, {
+    position,
+    velocity,
+    life = 1.05 + Math.random() * 0.75,
+    startScale = (0.055 + Math.random() * 0.11) * entity.baseScale,
+  }) {
+    entry.mesh.material = pool.materialsByColor[colors[entity.colorId].id] ?? pool.materialsByColor[colors[0].id];
+    entry.mesh.position.copy(position);
+    entry.vel.copy(velocity);
+    entry.baseScale = startScale;
+    entry.mesh.scale.setScalar(startScale);
+    entry.mesh.material.opacity = 0;
+    entry.mesh.visible = true;
+    entry.life = life;
+    entry.lifeMax = life;
+    entry.baseOpacity = entity.baseOpacity;
+    entry.active = true;
+    entry.owner = entity;
+    entity.activeBurstBubbleCount += 1;
+  }
+
+  function spawnOmnidirectionalBurst(entity) {
     const targetCount = entity.minBurstBubbleCount
       + Math.floor(Math.random() * (entity.maxBurstBubbleCount - entity.minBurstBubbleCount + 1));
-    entity.activeBurstBubbleCount = 0;
 
     for (let i = 0; i < targetCount; i += 1) {
-      let entry = null;
-      for (let j = 0; j < pool.entries.length; j += 1) {
-        if (!pool.entries[j].active) {
-          entry = pool.entries[j];
-          break;
-        }
-      }
+      const entry = claimPoolEntry();
       if (!entry) break;
 
       const randomDir = new THREE.Vector3(
         Math.random() * 2 - 1,
         Math.random() * 2 - 1,
-        Math.random() * 2 - 1
+        Math.random() * 2 - 1,
       ).normalize();
 
       const spawnDir = new THREE.Vector3(
         Math.random() * 2 - 1,
         Math.random() * 2 - 1,
-        Math.random() * 2 - 1
+        Math.random() * 2 - 1,
       ).normalize();
 
       const velocityDir = spawnDir.clone().lerp(randomDir, 0.22).normalize();
       const speed = 0.34 + Math.random() * 0.5;
-      entry.vel.copy(velocityDir).multiplyScalar(speed);
 
       const innerRadius = bubbleBaseRadius * entity.preBurstScaleMax * 0.9;
       const spawnRadius = innerRadius * Math.cbrt(Math.random());
 
-      entry.mesh.material = pool.materialsByColor[colors[entity.colorId].id] ?? pool.materialsByColor[colors[0].id];
-      entry.mesh.position.copy(entity.group.position)
+      workOrigin.copy(entity.group.position)
         .add(entity.bubble.position)
         .addScaledVector(spawnDir, spawnRadius * entity.baseScale);
 
-      const startScale = (0.055 + Math.random() * 0.11) * entity.baseScale;
-      entry.baseScale = startScale;
-      entry.mesh.scale.setScalar(startScale);
-      entry.mesh.material.opacity = 0;
-      entry.mesh.visible = true;
+      activateBurstEntry(entity, entry, {
+        position: workOrigin,
+        velocity: velocityDir.multiplyScalar(speed),
+      });
+    }
+  }
 
-      entry.life = 1.05 + Math.random() * 0.75;
-      entry.lifeMax = entry.life;
-      entry.baseOpacity = entity.baseOpacity;
-      entry.active = true;
-      entry.owner = entity;
-      entity.activeBurstBubbleCount += 1;
+  function spawnDirectionalBurst(entity) {
+    const raySteps = countRaySteps(entity);
+    if (raySteps <= 0) {
+      spawnOmnidirectionalBurst(entity);
+      return;
+    }
+
+    const axis = gridDirectionToWorld(entity.mechanismDirection);
+    workLateral.set(axis.y, -axis.x, 0);
+    if (workLateral.lengthSq() < 1e-6) workLateral.set(0, 1, 0);
+    workLateral.normalize();
+
+    const cellStride = entity.radius * 2.35 * entity.baseScale;
+    workOrigin.copy(entity.group.position).add(entity.bubble.position);
+
+    const particlesPerCell = 2;
+    const targetCount = Math.min(raySteps * particlesPerCell + 2, 24);
+
+    for (let i = 0; i < targetCount; i += 1) {
+      const entry = claimPoolEntry();
+      if (!entry) break;
+
+      const stepIndex = Math.floor(i / particlesPerCell) + 1;
+      const along = Math.min(stepIndex, raySteps) * cellStride;
+      const lateral = (Math.random() - 0.5) * entity.radius * 0.35 * entity.baseScale;
+      const forwardJitter = (Math.random() - 0.5) * cellStride * 0.15;
+
+      workOrigin.copy(entity.group.position)
+        .add(entity.bubble.position)
+        .addScaledVector(axis, along + forwardJitter)
+        .addScaledVector(workLateral, lateral);
+
+      const velocityDir = axis.clone()
+        .addScaledVector(workLateral, (Math.random() - 0.5) * 0.28)
+        .normalize();
+      const speed = 0.42 + Math.random() * 0.55;
+
+      activateBurstEntry(entity, entry, {
+        position: workOrigin,
+        velocity: velocityDir.multiplyScalar(speed),
+        life: 0.85 + Math.random() * 0.65,
+      });
+    }
+  }
+
+  function spawnForEntity(entity) {
+    ensurePool();
+    entity.activeBurstBubbleCount = 0;
+
+    if (entity.mechanismDirection) {
+      spawnDirectionalBurst(entity);
+    } else {
+      spawnOmnidirectionalBurst(entity);
     }
 
     entity.burstPointsVisible = entity.activeBurstBubbleCount > 0;

@@ -61,6 +61,7 @@ export function createSessionFlowController({
         motionMode: "grid",
         gridCol: def.col ?? -1,
         gridRow: def.row ?? -1,
+        gridSize: level.gridSize ?? 0,
         mechanismDirection: def.mechanismDirection ?? null,
       });
       const spawnMargin = fruit.radius + 0.06;
@@ -92,13 +93,6 @@ export function createSessionFlowController({
     state.nowPoint = null;
     state.stepLimit = Math.max(1, Math.floor(level.stepLimit ?? 1));
     state.stepsUsed = 0;
-    state.winMode = level.winMode === "retain" ? "retain" : "unify";
-    state.retainTargets = Array.isArray(level.retainTargets)
-      ? level.retainTargets.map((item) => ({
-        colorId: Math.floor(item.colorId),
-        count: Math.floor(item.count),
-      }))
-      : [];
     state.outOfMovesHandling = false;
     state.outOfMovesContinuePending = false;
     state.outOfMovesContinueUsedInLevel = false;

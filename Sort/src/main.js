@@ -31,11 +31,7 @@ import { createHomeScreenController } from "./game/home-screen.js";
 import { createSessionFlowController } from "./game/session-flow.js";
 import { createLayoutViewportController } from "./game/layout-viewport.js";
 import { createRoundStateController } from "./game/round-state.js";
-import {
-  countActiveByColor,
-  evaluateLevelWin,
-  normalizeWinMode,
-} from "./game/win-conditions.js";
+
 import { createLightDebugUiController } from "./game/light-debug-ui.js";
 import {
   applyDomI18n,
@@ -60,7 +56,7 @@ const gameplayRulesPanelEl = document.getElementById("gameplay-rules-panel");
 const hudEl = document.getElementById("hud");
 const stepsEl = document.getElementById("score");
 const hudLevelEl = document.getElementById("hud-level");
-const hudGoalsEl = document.getElementById("hud-goals");
+
 const sliceStateEl = document.getElementById("slice-state");
 const commentaryEl = document.getElementById("commentary");
 const gameplayIntroMaskEl = document.getElementById("gameplay-intro-mask");
@@ -338,8 +334,6 @@ const state = {
   lastMoveAt: 0,
   stepLimit: 0,
   stepsUsed: 0,
-  winMode: "unify",
-  retainTargets: [],
   coins: 0,
   stamina: staminaMax,
   staminaLastRecoverAt: 0,
@@ -833,7 +827,6 @@ const sessionFlow = createSessionFlowController({
   onSetLevelTestSelection: setLevelTestSelection,
   onUpdateStepsHud: () => {
     updateStepsHud();
-    updateGoalsHud();
   },
   onClearQueuedSelections: clearQueuedSelections,
   onPlayOutOfMovesBanner: playOutOfMovesBanner,
@@ -849,14 +842,11 @@ const sessionFlow = createSessionFlowController({
     setGameplayRulesPanelVisible(true);
     const gridSize = level.gridSize ?? 3;
     const hasMechanisms = Array.isArray(level.mechanisms) && level.mechanisms.length > 0;
-    const isRetain = level.winMode === "retain";
     const tip = index === 0
       ? `第1关：${gridSize}×${gridSize}，捏碎泡泡会给四周染色！`
       : hasMechanisms
-        ? `第${index + 1}关：带箭头的机制泡泡被染色后，会沿箭头方向传播颜色`
-        : isRetain
-          ? `第${index + 1}关：${gridSize}×${gridSize}，让场上泡泡数量与顶部目标一致`
-          : `第${index + 1}关：${gridSize}×${gridSize}，让剩下泡泡颜色一致`;
+        ? `第${index + 1}关：箭头泡泡捏碎时，四邻染色并沿箭头传到尽头`
+        : `第${index + 1}关：${gridSize}×${gridSize}，让剩下泡泡颜色一致`;
     const duration = hasMechanisms ? 3200 : index === 0 ? 2800 : 2200;
     gameUI.showCommentary(tip, duration);
     void warmupBubbleRenderer({ renderer, scene, camera, fruits });
@@ -871,6 +861,7 @@ const sessionFlow = createSessionFlowController({
     motionMode,
     gridCol,
     gridRow,
+    gridSize,
     mechanismDirection,
   }) => new BubbleEntity({
     id,
@@ -882,6 +873,7 @@ const sessionFlow = createSessionFlowController({
     motionMode,
     gridCol,
     gridRow,
+    gridSize,
     mechanismDirection,
   }),
 });
@@ -2128,7 +2120,12 @@ function tick() {
     onPop: () => gameAudio.playRandomPopAudio(),
     onBurst: (fruit, burstDir) => {
       colorUnifySystem.applyPop({ source: fruit, fruits, colors });
-      popWaveSystem.triggerCrossWave(fruit, fruits);
+      if (fruit.mechanismDirection) {
+        popWaveSystem.triggerCrossWave(fruit, fruits);
+        popWaveSystem.triggerDirectionalWave(fruit, fruits);
+      } else {
+        popWaveSystem.triggerCrossWave(fruit, fruits);
+      }
       fruit.pop(burstDir, 2.4);
     },
   });
@@ -2160,22 +2157,12 @@ function tick() {
 
   bubbleSpawnSystem.update(dt);
 
-  if (state.started && !state.inHome) {
-    updateGoalsHud();
-  }
-
   renderer.render(scene, camera);
 
-  const winMode = normalizeWinMode(state.winMode);
-  const winEval = evaluateLevelWin({
-    winMode,
-    retainTargets: state.retainTargets,
-    fruits,
-    isBoardUnified: () => colorUnifySystem.isBoardUnified(fruits),
-  });
+  const boardUnified = colorUnifySystem.isBoardUnified(fruits);
 
   if (
-    winEval.kind === "unify"
+    boardUnified
     && remaining > 0
     && !victoryPopSequence.hasStarted()
     && !state.gameOver
@@ -2205,9 +2192,7 @@ function tick() {
     }
   }
 
-  const winConditionMet = winMode === "retain"
-    ? winEval.met
-    : (winEval.met || remaining === 0);
+  const winConditionMet = boardUnified || remaining === 0;
   let levelClearSignal = remaining;
   if (victoryPopSequence.hasStarted()) {
     const victoryPopsDone = victoryPopSequence.isComplete() && remaining === 0;
@@ -2264,46 +2249,6 @@ function updateStepsHud() {
   const remaining = Math.max(0, state.stepLimit - state.stepsUsed);
   stepsEl.textContent = `MOVE:${remaining}`;
   if (hudLevelEl) hudLevelEl.textContent = `LV:${state.currentLevelIndex + 1}`;
-}
-
-function colorHexForHud(colorId) {
-  const def = colors[colorId];
-  if (!def) return "#888888";
-  return `#${def.base.toString(16).padStart(6, "0")}`;
-}
-
-function updateGoalsHud() {
-  if (!hudGoalsEl) return;
-
-  const winMode = normalizeWinMode(state.winMode);
-  const targets = state.retainTargets ?? [];
-  if (winMode !== "retain" || !targets.length || !state.started || state.inHome) {
-    hudGoalsEl.classList.add("hidden");
-    hudGoalsEl.innerHTML = "";
-    return;
-  }
-
-  hudGoalsEl.classList.remove("hidden");
-  const counts = countActiveByColor(fruits);
-  hudGoalsEl.innerHTML = "";
-
-  for (const target of targets) {
-    const current = counts.get(target.colorId) ?? 0;
-    const chip = document.createElement("div");
-    chip.className = "hud-goal-chip";
-    if (current === target.count) chip.classList.add("is-met");
-
-    const swatch = document.createElement("span");
-    swatch.className = "hud-goal-swatch";
-    swatch.style.background = colorHexForHud(target.colorId);
-
-    const value = document.createElement("span");
-    value.className = "hud-goal-value";
-    value.textContent = `${current}/${target.count}`;
-
-    chip.append(swatch, value);
-    hudGoalsEl.appendChild(chip);
-  }
 }
 
 function screenToWorld(clientX, clientY) {

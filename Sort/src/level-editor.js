@@ -11,9 +11,7 @@ import {
   cancelSolverJobs,
   levelBoardKey,
   solveLevelAsync,
-  boardFromLevel,
 } from "./level-editor-solver.js";
-import { validateRetainLevel } from "./game/retain-level-validation.js";
 import {
   DIRECTION_ARROW,
   mechanismsFromLevel,
@@ -62,9 +60,6 @@ const els = {
   btnExport: document.getElementById("btn-export"),
   btnCopy: document.getElementById("btn-copy"),
   btnDownload: document.getElementById("btn-download"),
-  winMode: document.getElementById("win-mode"),
-  retainTargetsPanel: document.getElementById("retain-targets-panel"),
-  retainTargets: document.getElementById("retain-targets"),
 };
 
 const state = {
@@ -214,6 +209,7 @@ function createBlankLevel(id) {
     cells,
     mechanisms: [],
     stepLimit: 8,
+    winMode: "unify",
   };
 }
 
@@ -227,60 +223,6 @@ function addNewLevel() {
   state.allLevels.sort((a, b) => a.id - b.id);
   state.editorMode = "color";
   switchToLevel(level);
-}
-
-function readRetainTargetsFromUi() {
-  const targets = [];
-  for (const color of COLORS) {
-    const input = els.retainTargets.querySelector(`input[data-color-id="${color.id}"]`);
-    const count = Math.max(0, Math.floor(Number(input?.value) || 0));
-    if (count > 0) targets.push({ colorId: color.id, count });
-  }
-  return targets;
-}
-
-function writeRetainTargetsToUi(retainTargets) {
-  const map = new Map();
-  if (Array.isArray(retainTargets)) {
-    for (const item of retainTargets) {
-      map.set(Math.floor(item.colorId), Math.floor(item.count));
-    }
-  }
-  for (const color of COLORS) {
-    const input = els.retainTargets.querySelector(`input[data-color-id="${color.id}"]`);
-    if (input) input.value = String(map.get(color.id) ?? 0);
-  }
-}
-
-function syncRetainTargetsPanelVisibility() {
-  const isRetain = els.winMode?.value === "retain";
-  els.retainTargetsPanel?.classList.toggle("hidden", !isRetain);
-}
-
-function renderRetainTargetInputs() {
-  if (!els.retainTargets) return;
-  els.retainTargets.innerHTML = "";
-  for (const color of COLORS) {
-    const row = document.createElement("label");
-    row.className = "retain-target-row";
-    row.title = localizedColorName(color.id, color.name);
-
-    const swatch = document.createElement("span");
-    swatch.className = "retain-target-swatch";
-    swatch.style.background = color.hex;
-
-    const input = document.createElement("input");
-    input.type = "number";
-    input.min = "0";
-    input.max = "25";
-    input.step = "1";
-    input.value = "0";
-    input.dataset.colorId = String(color.id);
-    input.addEventListener("input", () => invalidateSolutionCache());
-
-    row.append(swatch, input);
-    els.retainTargets.appendChild(row);
-  }
 }
 
 function levelToEditor(level) {
@@ -306,11 +248,6 @@ function levelToEditor(level) {
   els.gridSize.value = String(size);
   els.difficulty.value = level.difficulty ?? "easy";
   state.activeLevelId = Math.floor(level.id ?? 1);
-  if (els.winMode) {
-    els.winMode.value = level.winMode === "retain" ? "retain" : "unify";
-  }
-  writeRetainTargetsToUi(level.retainTargets);
-  syncRetainTargetsPanelVisibility();
 }
 
 function buildLevelJson() {
@@ -319,8 +256,6 @@ function buildLevelJson() {
   const colorCounts = buildColorCounts(cells);
   const colorIds = colorCounts.map((item) => item.colorId);
   const layout = gridLayoutParams(size);
-  const winMode = els.winMode?.value === "retain" ? "retain" : "unify";
-  const retainTargets = winMode === "retain" ? readRetainTargetsFromUi() : [];
 
   return {
     id: Math.max(1, Math.floor(Number(els.levelId.value) || 1)),
@@ -338,8 +273,7 @@ function buildLevelJson() {
     cells,
     mechanisms: mechanismsToLevelList(state.mechanisms),
     stepLimit: Math.max(1, Math.floor(Number(els.stepLimit.value) || 1)),
-    winMode,
-    retainTargets,
+    winMode: "unify",
   };
 }
 
@@ -469,43 +403,16 @@ async function getCachedSolutionAsync(level = buildLevelJson()) {
   return result;
 }
 
-function retainValidationMessage(code, details = {}) {
-  if (code === "emptyTargets") return t("editor.retainValidate.emptyTargets");
-  if (code === "targetsTooMany") {
-    return t("editor.retainValidate.targetsTooMany", {
-      sum: details.targetSum,
-      cells: details.cellCount,
-    });
-  }
-  if (code === "missingColor") {
-    const name = localizedColorName(details.colorId, String(details.colorId));
-    return t("editor.retainValidate.missingColor", { name });
-  }
-  return t("editor.solve.failed", { message: code });
-}
-
-function formatRetainWarnings(warnings = []) {
-  const lines = [];
-  if (warnings.includes("allCellsTarget")) lines.push(t("editor.retainValidate.warnAllCells"));
-  if (warnings.includes("alreadyWon")) lines.push(t("editor.retainValidate.warnAlreadyWon"));
-  return lines;
-}
-
-function formatSolutionSummary(solution, stepLimit, { winMode = "unify", warnings = [] } = {}) {
-  const warnLines = winMode === "retain" ? formatRetainWarnings(warnings) : [];
+function formatSolutionSummary(solution, stepLimit) {
   let mainLine = "";
 
   if (solution.timedOut) {
     const seconds = Math.round(LARGE_GRID_TIME_BUDGET_MS / 1000);
     mainLine = t("editor.solve.timeout", { seconds });
   } else if (solution.steps < 0) {
-    mainLine = winMode === "retain"
-      ? t("editor.solve.retainNotFound")
-      : t("editor.solve.notFound");
+    mainLine = t("editor.solve.notFound");
   } else if (solution.steps === 0) {
-    mainLine = winMode === "retain"
-      ? t("editor.solve.retainZero")
-      : t("editor.solve.zero");
+    mainLine = t("editor.solve.zero");
   } else if (!solution.moves?.length && solution.steps > 0) {
     mainLine = t("editor.solve.partial", { steps: solution.steps });
   } else {
@@ -516,7 +423,7 @@ function formatSolutionSummary(solution, stepLimit, { winMode = "unify", warning
     else mainLine = t("editor.solve.margin", { steps: solution.steps, limit, margin });
   }
 
-  return [...warnLines, mainLine].filter(Boolean).join("\n");
+  return mainLine;
 }
 
 function updateStats(extraLine = "") {
@@ -548,16 +455,6 @@ function solvingStatusText(level) {
 
 async function calculateOptimalSteps() {
   const level = buildLevelJson();
-  let retainWarnings = [];
-
-  if (level.winMode === "retain") {
-    const validation = validateRetainLevel(level, boardFromLevel);
-    if (!validation.ok) {
-      updateStats(retainValidationMessage(validation.code, validation));
-      return;
-    }
-    retainWarnings = validation.warnings ?? [];
-  }
 
   els.btnSolve.disabled = true;
   els.btnPlaytest.disabled = true;
@@ -567,10 +464,7 @@ async function calculateOptimalSteps() {
   try {
     const solution = await getCachedSolutionAsync(level);
     if (solution.cancelled) return;
-    updateStats(formatSolutionSummary(solution, level.stepLimit, {
-      winMode: level.winMode,
-      warnings: retainWarnings,
-    }));
+    updateStats(formatSolutionSummary(solution, level.stepLimit));
   } catch (err) {
     updateStats(t("editor.solve.failed", { message: err?.message ?? "?" }));
   } finally {
@@ -718,11 +612,6 @@ async function loadLevelsFromUrl(url = DEFAULT_LEVELS_URL) {
 
 function bindEvents() {
   els.btnAddLevel?.addEventListener("click", addNewLevel);
-  els.winMode?.addEventListener("change", () => {
-    invalidateSolutionCache();
-    syncRetainTargetsPanelVisibility();
-    updateStats();
-  });
 
   els.gridSize.addEventListener("change", () => {
     invalidateSolutionCache();
@@ -853,7 +742,6 @@ async function init() {
   mountLocaleToggle(document.getElementById("editor-locale-mount"), {
     onChange: refreshEditorLocale,
   });
-  renderRetainTargetInputs();
   refreshEditorLocale();
   bindEvents();
   state.saveApiAvailable = await probeSaveApi();

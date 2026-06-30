@@ -3,11 +3,6 @@ import {
   formatMechanismsKey,
   mechanismsFromLevel,
 } from "./systems/mechanism-dye-logic.js";
-import {
-  isRetainWinMetFromBoard,
-  normalizeRetainTargets,
-} from "./game/win-conditions.js";
-
 export const DEFAULT_MAX_DEPTH = 40;
 export const LARGE_GRID_TIME_BUDGET_MS = 2500;
 const TIMEOUT_CHECK_INTERVAL = 2048;
@@ -59,18 +54,11 @@ function createDeadlineTracker(deadline) {
   };
 }
 
-export function solveGoalFromLevel(level) {
-  if (level?.winMode === "retain") {
-    const retainTargets = normalizeRetainTargets(level.retainTargets);
-    return { type: "retain", retainTargets };
-  }
+export function solveGoalFromLevel(_level) {
   return UNIFY_GOAL;
 }
 
-function isGoalBoard(board, goal) {
-  if (goal?.type === "retain") {
-    return isRetainWinMetFromBoard(board, goal.retainTargets);
-  }
+function isGoalBoard(board, _goal) {
   return isBoardUnified(board);
 }
 
@@ -269,10 +257,5 @@ export function solveLevelAsync(
 export function levelBoardKey(level) {
   const { size, board } = boardFromLevel(level);
   const mechKey = formatMechanismsKey(level);
-  const goal = solveGoalFromLevel(level);
-  let goalKey = "unify";
-  if (goal.type === "retain" && goal.retainTargets.length) {
-    goalKey = `retain:${goal.retainTargets.map((t) => `${t.colorId}x${t.count}`).join(",")}`;
-  }
-  return `${goalKey}|${size}|${board.join(",")}|${mechKey}`;
+  return `unify|${size}|${board.join(",")}|${mechKey}`;
 }
