@@ -141,44 +141,106 @@ export function createColorUnifySystem() {
     }
   }
 
+  function mechanismCellKey(mechanism) {
+    return `${mechanism.gridCol},${mechanism.gridRow}`;
+  }
+
+  function canEmitMechanismRay(mechanism) {
+    if (!mechanism?.mechanismDirection || !isActiveFruit(mechanism)) return false;
+    return !spreadVisited.has(mechanismCellKey(mechanism));
+  }
+
+  function markMechanismRayEmitted(mechanism) {
+    if (!canEmitMechanismRay(mechanism)) return false;
+    spreadVisited.add(mechanismCellKey(mechanism));
+    return true;
+  }
+
+  function queueNeighborMechanismChain({
+    fruit,
+    colorId,
+    colorDef,
+    fruits,
+    colors,
+    rayDelivery,
+    chainAnchors,
+  }) {
+    if (!fruit?.mechanismDirection || !canEmitMechanismRay(fruit)) return;
+
+    if (rayDelivery === "projectile") {
+      chainAnchors.push(fruit);
+      return;
+    }
+
+    scheduleRayFromMechanism({
+      mechanism: fruit,
+      fruits,
+      colors,
+      colorId,
+      colorDef,
+      baseDelayMs: 0,
+    });
+  }
+
   function dyeNeighborNow({
     fruits,
+    colors,
     colorId,
     colorDef,
     row,
     col,
+    rayDelivery,
+    chainAnchors,
   }) {
     const fruit = findFruitAt(fruits, col, row);
     if (!fruit) return;
 
-    applyDyeNow(fruit, colorId, colorDef);
-  }
+    const changed = applyDyeNow(fruit, colorId, colorDef);
+    if (!changed) return;
 
-  function markMechanismRayEmitted(mechanism) {
-    if (!mechanism?.mechanismDirection || !isActiveFruit(mechanism)) return false;
-    const key = `${mechanism.gridCol},${mechanism.gridRow}`;
-    if (spreadVisited.has(key)) return false;
-    spreadVisited.add(key);
-    return true;
+    queueNeighborMechanismChain({
+      fruit,
+      colorId,
+      colorDef,
+      fruits,
+      colors,
+      rayDelivery,
+      chainAnchors,
+    });
   }
 
   function pierceRayTarget(fruit, { colorId, colorDef }) {
     const changed = applyDyeNow(fruit, colorId, colorDef);
     if (!changed) return { chain: null, changed: false };
-    let chain = null;
-    if (fruit.mechanismDirection && markMechanismRayEmitted(fruit)) {
-      chain = fruit;
-    }
+
+    const chain = fruit.mechanismDirection && canEmitMechanismRay(fruit)
+      ? fruit
+      : null;
     return { chain, changed: true };
   }
 
+  function fruitHasPendingColorPresentation(fruit) {
+    if (!isActiveFruit(fruit)) return false;
+    if (fruit.dyePresentHoldOld || fruit.popWaveColorActive) return true;
+    return fruit.popWavePhase && fruit.popWavePhase !== "IDLE";
+  }
+
+  function hasPendingColorPresentation(fruits) {
+    for (const fruit of fruits) {
+      if (fruitHasPendingColorPresentation(fruit)) return true;
+    }
+    return false;
+  }
+
   function applyPop({ source, fruits, colors, rayDelivery = "instant" }) {
-    if (!isActiveFruit(source)) return;
+    const emptyResult = { chainAnchors: [] };
+    if (!isActiveFruit(source)) return emptyResult;
 
     const colorId = source.colorId;
     const colorDef = colors?.[colorId];
-    if (!colorDef) return;
+    if (!colorDef) return emptyResult;
 
+    const chainAnchors = [];
     spreadVisited.clear();
 
     if (source.mechanismDirection && rayDelivery !== "projectile") {
@@ -195,12 +257,17 @@ export function createColorUnifySystem() {
     for (const [dr, dc] of NEIGHBOR_DIRS) {
       dyeNeighborNow({
         fruits,
+        colors,
         colorId,
         colorDef,
         row: source.gridRow + dr,
         col: source.gridCol + dc,
+        rayDelivery,
+        chainAnchors,
       });
     }
+
+    return { chainAnchors };
   }
 
   function update() {
@@ -229,12 +296,14 @@ export function createColorUnifySystem() {
     isProjectileActive = typeof fn === "function" ? fn : () => false;
   }
 
-  function hasPendingWork() {
-    return hasPendingDyes() || isProjectileActive();
+  function hasPendingWork(fruits = []) {
+    return hasPendingDyes()
+      || isProjectileActive()
+      || hasPendingColorPresentation(fruits);
   }
 
   function isBoardUnified(fruits) {
-    if (hasPendingWork()) return false;
+    if (hasPendingWork(fruits)) return false;
 
     let targetColorId = null;
     let activeCount = 0;
@@ -255,6 +324,7 @@ export function createColorUnifySystem() {
   return {
     applyPop,
     pierceRayTarget,
+    canEmitMechanismRay,
     markMechanismRayEmitted,
     update,
     clear,

@@ -163,9 +163,11 @@ export function createMechanismArrowProjectileSystem({
     fruits,
     onPierce,
     canEmitFrom,
+    onEmitFrom,
   }) {
     if (!anchor?.mechanismDirection) return;
     if (typeof canEmitFrom === "function" && !canEmitFrom(anchor)) return;
+    if (typeof onEmitFrom === "function") onEmitFrom(anchor);
 
     const steps = buildRaySteps(anchor, fruits);
     if (!steps.length) return;
@@ -208,22 +210,25 @@ export function createMechanismArrowProjectileSystem({
     fruits,
     onPierce,
     canEmitFrom,
+    onEmitFrom,
   }) {
     pendingLaunches.push({
       anchor: source,
       fruits,
       onPierce,
       canEmitFrom,
+      onEmitFrom,
     });
     flushPendingLaunches();
   }
 
-  function enqueueChain(anchor, fruits, onPierce, canEmitFrom) {
+  function enqueueChain(anchor, fruits, onPierce, canEmitFrom, onEmitFrom) {
     pendingLaunches.push({
       anchor,
       fruits,
       onPierce,
       canEmitFrom,
+      onEmitFrom,
     });
   }
 
@@ -259,7 +264,13 @@ export function createMechanismArrowProjectileSystem({
         flight.piercedCells.add(cellKey);
         const chainAnchor = flight.onPierce?.(step.fruit) ?? null;
         if (chainAnchor) {
-          enqueueChain(chainAnchor, fruits, flight.onPierce, flight.canEmitFrom);
+          enqueueChain(
+            chainAnchor,
+            fruits,
+            flight.onPierce,
+            flight.canEmitFrom,
+            flight.onEmitFrom,
+          );
         }
       }
 

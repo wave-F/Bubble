@@ -72,6 +72,7 @@ import { preloadFile, preloadImage } from "./game/resource-loader.js";
 import { createLoadingScreenController } from "./ui/loading-screen.js";
 import { createGameplayTipController } from "./ui/gameplay-tip.js";
 import { createLevel1TutorialController } from "./ui/level1-tutorial.js";
+import { createArrowMechanismTutorialController } from "./ui/arrow-mechanism-tutorial.js";
 const appEl = document.getElementById("app");
 const phoneFrameEl = document.getElementById("phone-frame");
 const gameplayRulesPanelEl = document.getElementById("gameplay-rules-panel");
@@ -305,6 +306,7 @@ let outOfMovesContinueCostEl = document.getElementById("out-of-moves-continue-co
 let outOfMovesContinueBuyEl = document.getElementById("out-of-moves-continue-buy");
 const gameplayTip = createGameplayTipController({ hostEl: phoneFrameEl });
 let pendingLevel1TutorialStart = false;
+let pendingArrowTutorialStart = false;
 let onBubbleSpawnCompleteHook = null;
 
 const isIOSDevice = (() => {
@@ -641,6 +643,24 @@ const mechanismArrowProjectileSystem = createMechanismArrowProjectileSystem({
   bubbleBaseRadius,
 });
 colorUnifySystem.setProjectileActiveChecker(() => mechanismArrowProjectileSystem.isActive());
+
+function launchMechanismArrowRay(anchor, popColorId, popColorDef) {
+  mechanismArrowProjectileSystem.launch({
+    source: anchor,
+    fruits,
+    onPierce: (target) => {
+      const { chain } = colorUnifySystem.pierceRayTarget(target, {
+        colorId: popColorId,
+        colorDef: popColorDef,
+      });
+      playArrowRayCellWave(target);
+      return chain;
+    },
+    canEmitFrom: (flightAnchor) => colorUnifySystem.canEmitMechanismRay(flightAnchor),
+    onEmitFrom: (flightAnchor) => colorUnifySystem.markMechanismRayEmitted(flightAnchor),
+  });
+}
+
 const popWaveSystem = createPopWaveSystem({
   findGridNeighborFruits: colorUnifySystem.findGridNeighborFruits,
 });
@@ -776,15 +796,36 @@ const level1Tutorial = createLevel1TutorialController({
   getRenderer: () => renderer,
 });
 
-onBubbleSpawnCompleteHook = () => {
-  if (!pendingLevel1TutorialStart) return;
-  pendingLevel1TutorialStart = false;
+const arrowMechanismTutorial = createArrowMechanismTutorialController({
+  phoneFrameEl,
+  getCamera: () => camera,
+  getRenderer: () => renderer,
+  getLevels: () => LEVELS,
+});
+
+function startPendingGameplayTutorial() {
   const level = state.activeLevel ?? LEVELS[state.currentLevelIndex];
-  level1Tutorial.start({
-    fruits,
-    gridSize: level?.gridSize ?? 3,
-    remainingMoves: Math.max(0, state.stepLimit - state.stepsUsed),
-  });
+  const gridSize = level?.gridSize ?? 3;
+
+  if (pendingLevel1TutorialStart) {
+    pendingLevel1TutorialStart = false;
+    level1Tutorial.start({
+      fruits,
+      gridSize,
+      remainingMoves: Math.max(0, state.stepLimit - state.stepsUsed),
+    });
+    return;
+  }
+
+  if (pendingArrowTutorialStart) {
+    pendingArrowTutorialStart = false;
+    arrowMechanismTutorial.start({ fruits, gridSize });
+  }
+}
+
+onBubbleSpawnCompleteHook = () => {
+  if (!pendingLevel1TutorialStart && !pendingArrowTutorialStart) return;
+  startPendingGameplayTutorial();
 };
 
 const winCinematicDebugUi = createWinCinematicDebugUi({
@@ -1176,6 +1217,7 @@ const sessionFlow = createSessionFlowController({
   onBackHomeFromResult: backHomeFromResult,
   onLevelLoadStarted: () => {
     level1Tutorial.cancel();
+    arrowMechanismTutorial.cancel();
     setGameplayHudControlsVisible(true, {
       hudMetaLeftEl,
       restartBtnEl: gameplayRestartBtnEl,
@@ -1192,18 +1234,12 @@ const sessionFlow = createSessionFlowController({
     state.quickLevelRestart = false;
     state.levelTransitioning = true;
     pendingLevel1TutorialStart = level1Tutorial.shouldRun(index);
+    pendingArrowTutorialStart = !pendingLevel1TutorialStart && arrowMechanismTutorial.shouldRun(index);
     gridBoardSystem.show(level.gridLayout, { fadeIn: !quickRestart });
     bubbleSpawnSystem.start(fruits, level.gridLayout, { instant: quickRestart });
     if (quickRestart) {
       state.levelTransitioning = false;
-      if (pendingLevel1TutorialStart) {
-        pendingLevel1TutorialStart = false;
-        level1Tutorial.start({
-          fruits,
-          gridSize: level.gridSize ?? 3,
-          remainingMoves: Math.max(0, state.stepLimit - state.stepsUsed),
-        });
-      }
+      startPendingGameplayTutorial();
     }
     gameAudio.playRandomPopAudio({ volumeScale: 0.3 });
     setGameplayRulesPanelVisible(false);
@@ -1736,6 +1772,7 @@ function clearGameplayDataOnly(options = {}) {
     window.localStorage.removeItem(gameSettingsStorageKey);
     window.localStorage.removeItem(gameplayIntroStorageKey);
     window.localStorage.removeItem("fruit_level1_tutorial_seen_v1");
+    window.localStorage.removeItem("fruit_arrow_tutorial_seen_v1");
   }
 
   gameplayIntroSeen = false;
@@ -2540,7 +2577,10 @@ function resetFruits(level) {
 
 function onPointerDown(ev) {
   if (!state.resourcesReady || !state.started || state.gameOver || state.levelTransitioning || state.victoryPopActive || state.defeatPopActive || !renderer) return;
-  if (state.pressAwaitRelease || mechanismArrowProjectileSystem.isActive()) return;
+  if (
+    state.pressAwaitRelease
+    || colorUnifySystem.hasPendingWork(fruits)
+  ) return;
   if (state.stepLimit > 0 && state.stepsUsed >= state.stepLimit) {
     gameUI.showCommentary("Out of moves for this level.", 1000);
     return;
@@ -2557,6 +2597,10 @@ function onPointerDown(ev) {
   const pick = pressSystem.pickFruitAtWorldPoint(world.x, world.y, fruits);
   if (level1Tutorial.isActive() && pick && !level1Tutorial.isPressAllowed(pick.fruit)) {
     level1Tutorial.onWrongPress();
+    return;
+  }
+  if (arrowMechanismTutorial.isActive() && pick && !arrowMechanismTutorial.isPressAllowed(pick.fruit)) {
+    arrowMechanismTutorial.onWrongPress();
     return;
   }
   const began = pressSystem.beginPress({
@@ -2602,31 +2646,27 @@ function tick() {
       level1Tutorial.onPop(fruit, {
         remainingMoves: Math.max(0, state.stepLimit - state.stepsUsed),
       });
+      arrowMechanismTutorial.onPop(fruit);
       const popColorId = fruit.colorId;
       const popColorDef = colors?.[popColorId];
       if (fruit.mechanismDirection) {
-        colorUnifySystem.applyPop({
+        const { chainAnchors } = colorUnifySystem.applyPop({
           source: fruit,
           fruits,
           colors,
           rayDelivery: "projectile",
         });
-        mechanismArrowProjectileSystem.launch({
-          source: fruit,
-          fruits,
-          onPierce: (target) => {
-            const { chain } = colorUnifySystem.pierceRayTarget(target, {
-              colorId: popColorId,
-              colorDef: popColorDef,
-            });
-            playArrowRayCellWave(target);
-            return chain;
-          },
-          canEmitFrom: (anchor) => colorUnifySystem.markMechanismRayEmitted(anchor),
-        });
-      } else {
-        colorUnifySystem.applyPop({ source: fruit, fruits, colors });
         popWaveSystem.triggerCrossWave(fruit, fruits);
+        launchMechanismArrowRay(fruit, popColorId, popColorDef);
+        for (const chainAnchor of chainAnchors) {
+          launchMechanismArrowRay(chainAnchor, popColorId, popColorDef);
+        }
+      } else {
+        const { chainAnchors } = colorUnifySystem.applyPop({ source: fruit, fruits, colors });
+        popWaveSystem.triggerCrossWave(fruit, fruits);
+        for (const chainAnchor of chainAnchors) {
+          launchMechanismArrowRay(chainAnchor, popColorId, popColorDef);
+        }
       }
       fruit.pop(burstDir, 2.4);
     },
@@ -2665,6 +2705,9 @@ function tick() {
   playfieldBackground.update(dt);
   if (level1Tutorial.isActive()) {
     level1Tutorial.update();
+  }
+  if (arrowMechanismTutorial.isActive()) {
+    arrowMechanismTutorial.update();
   }
 
   renderer.render(scene, camera);
@@ -2745,7 +2788,7 @@ function tick() {
     && remaining > 0
     && !state.pointerDown
     && state.pendingPops.length === 0
-    && !mechanismArrowProjectileSystem.isActive()
+    && !colorUnifySystem.hasPendingWork(fruits)
   ) {
     triggerOutOfMovesContinueFlow();
   }
@@ -2788,6 +2831,9 @@ function resize() {
   layoutViewport.resize();
   if (level1Tutorial.isActive()) {
     level1Tutorial.update();
+  }
+  if (arrowMechanismTutorial.isActive()) {
+    arrowMechanismTutorial.update();
   }
 }
 

@@ -944,7 +944,8 @@
   }
 }
 
-#level1-tutorial {
+#level1-tutorial,
+#arrow-mechanism-tutorial {
   position: absolute;
   inset: 0;
   z-index: 33;
@@ -1033,6 +1034,10 @@
 .level1-tutorial-tip.is-centered {
   left: 50%;
   top: 18%;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  border-radius: 18px;
+  white-space: pre-line;
   transform: translate(-50%, -50%) scale(0.96);
 }
 
