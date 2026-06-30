@@ -116,22 +116,12 @@ export function createColorUnifySystem() {
         const delayMs = baseDelayMs + step * MECHANISM_DYE_STEP_MS;
         const delaySec = delayMs / 1000;
         playArrowRayCellWave(fruit, { delaySec });
-        const triggerChain = Boolean(fruit.mechanismDirection);
         scheduleDye(
           fruit,
           colorId,
           colorDef,
           delayMs,
-          triggerChain
-            ? () => scheduleRayFromMechanism({
-              mechanism: fruit,
-              fruits,
-              colors,
-              colorId,
-              colorDef,
-              baseDelayMs: 0,
-            })
-            : null,
+          null,
           { visualPulse: false },
         );
       }
@@ -156,32 +146,6 @@ export function createColorUnifySystem() {
     return true;
   }
 
-  function queueNeighborMechanismChain({
-    fruit,
-    colorId,
-    colorDef,
-    fruits,
-    colors,
-    rayDelivery,
-    chainAnchors,
-  }) {
-    if (!fruit?.mechanismDirection || !canEmitMechanismRay(fruit)) return;
-
-    if (rayDelivery === "projectile") {
-      chainAnchors.push(fruit);
-      return;
-    }
-
-    scheduleRayFromMechanism({
-      mechanism: fruit,
-      fruits,
-      colors,
-      colorId,
-      colorDef,
-      baseDelayMs: 0,
-    });
-  }
-
   function dyeNeighborNow({
     fruits,
     colors,
@@ -189,34 +153,16 @@ export function createColorUnifySystem() {
     colorDef,
     row,
     col,
-    rayDelivery,
-    chainAnchors,
   }) {
     const fruit = findFruitAt(fruits, col, row);
     if (!fruit) return;
 
-    const changed = applyDyeNow(fruit, colorId, colorDef);
-    if (!changed) return;
-
-    queueNeighborMechanismChain({
-      fruit,
-      colorId,
-      colorDef,
-      fruits,
-      colors,
-      rayDelivery,
-      chainAnchors,
-    });
+    applyDyeNow(fruit, colorId, colorDef);
   }
 
   function pierceRayTarget(fruit, { colorId, colorDef }) {
     const changed = applyDyeNow(fruit, colorId, colorDef);
-    if (!changed) return { chain: null, changed: false };
-
-    const chain = fruit.mechanismDirection && canEmitMechanismRay(fruit)
-      ? fruit
-      : null;
-    return { chain, changed: true };
+    return { chain: null, changed };
   }
 
   function fruitHasPendingColorPresentation(fruit) {
@@ -240,7 +186,6 @@ export function createColorUnifySystem() {
     const colorDef = colors?.[colorId];
     if (!colorDef) return emptyResult;
 
-    const chainAnchors = [];
     spreadVisited.clear();
 
     if (source.mechanismDirection && rayDelivery !== "projectile") {
@@ -262,12 +207,10 @@ export function createColorUnifySystem() {
         colorDef,
         row: source.gridRow + dr,
         col: source.gridCol + dc,
-        rayDelivery,
-        chainAnchors,
       });
     }
 
-    return { chainAnchors };
+    return { chainAnchors: [] };
   }
 
   function update() {

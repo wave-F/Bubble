@@ -3,7 +3,7 @@ import * as THREE from "three/webgpu";
 const STORAGE_KEY = "fruit_arrow_tutorial_seen_v1";
 const FINGER_OFFSET_X = 14;
 const FINGER_OFFSET_Y = -26;
-const HOLD_TIP = "箭头泡泡被染色/破碎时，\n会将对应方向全部染色！";
+const HOLD_TIP = "戳破箭头泡泡时，\n会将对应方向全部染色！";
 const WRONG_TIP = "先捏箭头泡泡";
 
 export function isFirstMechanismLevel(levels, levelIndex) {

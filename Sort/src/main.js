@@ -2712,24 +2712,15 @@ function tick() {
       arrowMechanismTutorial.onPop(fruit);
       const popColorId = fruit.colorId;
       const popColorDef = colors?.[popColorId];
+      colorUnifySystem.applyPop({
+        source: fruit,
+        fruits,
+        colors,
+        rayDelivery: fruit.mechanismDirection ? "projectile" : "instant",
+      });
+      popWaveSystem.triggerCrossWave(fruit, fruits);
       if (fruit.mechanismDirection) {
-        const { chainAnchors } = colorUnifySystem.applyPop({
-          source: fruit,
-          fruits,
-          colors,
-          rayDelivery: "projectile",
-        });
-        popWaveSystem.triggerCrossWave(fruit, fruits);
         launchMechanismArrowRay(fruit, popColorId, popColorDef);
-        for (const chainAnchor of chainAnchors) {
-          launchMechanismArrowRay(chainAnchor, popColorId, popColorDef);
-        }
-      } else {
-        const { chainAnchors } = colorUnifySystem.applyPop({ source: fruit, fruits, colors });
-        popWaveSystem.triggerCrossWave(fruit, fruits);
-        for (const chainAnchor of chainAnchors) {
-          launchMechanismArrowRay(chainAnchor, popColorId, popColorDef);
-        }
       }
       fruit.pop(burstDir, 2.4);
     },

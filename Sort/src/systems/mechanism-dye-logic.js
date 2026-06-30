@@ -53,7 +53,7 @@ export function formatMechanismsKey(level) {
   return mechanismsToLevelList(map).map((item) => `${item.index}:${item.direction}`).join(";");
 }
 
-export function spreadRayAlongDirection(board, size, mechanisms, originRow, originCol, direction, color, queue) {
+export function spreadRayAlongDirection(board, size, originRow, originCol, direction, color) {
   const delta = DIRECTION_DELTA[direction];
   if (!delta) return;
 
@@ -63,29 +63,12 @@ export function spreadRayAlongDirection(board, size, mechanisms, originRow, orig
 
   while (nr >= 0 && nr < size && nc >= 0 && nc < size) {
     const ni = nr * size + nc;
-    if (board[ni] >= 0) {
-      const oldColor = board[ni];
-      if (oldColor !== color) {
-        board[ni] = color;
-        if (mechanisms.has(ni)) {
-          queue.push({ row: nr, col: nc, idx: ni });
-        }
-      }
+    if (board[ni] >= 0 && board[ni] !== color) {
+      board[ni] = color;
     }
     nr += dr;
     nc += dc;
   }
-}
-
-function spreadMechanismRay(board, size, mechanisms, visited, row, col, color, queue) {
-  const idx = row * size + col;
-  if (visited.has(idx)) return;
-  visited.add(idx);
-
-  const direction = mechanisms.get(idx);
-  if (!direction) return;
-
-  spreadRayAlongDirection(board, size, mechanisms, row, col, direction, color, queue);
 }
 
 export function applyPopToBoard(board, size, mechanisms, row, col) {
@@ -97,9 +80,8 @@ export function applyPopToBoard(board, size, mechanisms, row, col) {
   const popDirection = mechanisms.get(idx);
   next[idx] = -1;
 
-  const queue = [];
   if (popDirection) {
-    spreadRayAlongDirection(next, size, mechanisms, row, col, popDirection, color, queue);
+    spreadRayAlongDirection(next, size, row, col, popDirection, color);
   }
 
   for (const [dr, dc] of NEIGHBOR_DIRS) {
@@ -113,15 +95,6 @@ export function applyPopToBoard(board, size, mechanisms, row, col) {
     const oldColor = next[ni];
     if (oldColor === color) continue;
     next[ni] = color;
-    if (mechanisms.has(ni)) {
-      queue.push({ row: nr, col: nc, idx: ni });
-    }
-  }
-
-  const visited = new Set();
-  while (queue.length) {
-    const cell = queue.shift();
-    spreadMechanismRay(next, size, mechanisms, visited, cell.row, cell.col, color, queue);
   }
 
   return next;

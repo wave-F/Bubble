@@ -347,10 +347,6 @@
         {
           "index": 1,
           "direction": "down"
-        },
-        {
-          "index": 13,
-          "direction": "right"
         }
       ],
       "stepLimit": 4,
@@ -485,7 +481,7 @@
           "direction": "up"
         }
       ],
-      "stepLimit": 2,
+      "stepLimit": 4,
       "winMode": "unify"
     },
     {
@@ -508,11 +504,11 @@
       "colorCounts": [
         {
           "colorId": 3,
-          "count": 11
+          "count": 8
         },
         {
           "colorId": 5,
-          "count": 8
+          "count": 11
         },
         {
           "colorId": 7,
@@ -529,30 +525,38 @@
         3,
         5,
         5,
-        3,
+        5,
         7,
         5,
         3,
         5,
-        3,
+        5,
         7,
         7,
         7,
-        7,
+        5,
         3,
         7,
         5,
         3,
-        3,
+        7,
         3
       ],
       "mechanisms": [
         {
+          "index": 4,
+          "direction": "left"
+        },
+        {
           "index": 20,
           "direction": "up"
+        },
+        {
+          "index": 21,
+          "direction": "right"
         }
       ],
-      "stepLimit": 6,
+      "stepLimit": 5,
       "winMode": "unify"
     }
   ]

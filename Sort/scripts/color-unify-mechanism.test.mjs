@@ -37,25 +37,25 @@ const colors = [
   { base: "#0000ff" },
 ];
 
-test("pierceRayTarget chains arrow bubbles without pre-marking emit slot", () => {
+test("pierceRayTarget only dyes arrow bubbles along the ray", () => {
   const system = createColorUnifySystem();
   const anchor = makeFruit({ id: 0, col: 0, row: 0, colorId: 0, mechanismDirection: "right" });
-  const chained = makeFruit({ id: 1, col: 2, row: 0, colorId: 1, mechanismDirection: "down" });
+  const alongRay = makeFruit({ id: 1, col: 2, row: 0, colorId: 1, mechanismDirection: "down" });
 
   system.markMechanismRayEmitted(anchor);
 
-  const { chain } = system.pierceRayTarget(chained, {
+  const { chain, changed } = system.pierceRayTarget(alongRay, {
     colorId: 0,
     colorDef: colors[0],
   });
 
-  assert.equal(chain, chained);
-  assert.equal(system.canEmitMechanismRay(chained), true);
-  assert.equal(system.markMechanismRayEmitted(chained), true);
-  assert.equal(system.canEmitMechanismRay(chained), false);
+  assert.equal(chain, null);
+  assert.equal(changed, true);
+  assert.equal(alongRay.colorId, 0);
+  assert.equal(system.canEmitMechanismRay(alongRay), true);
 });
 
-test("applyPop returns neighbor arrow anchors for projectile delivery", () => {
+test("applyPop from normal bubble only dyes neighbor arrows", () => {
   const system = createColorUnifySystem();
   const source = makeFruit({ id: 0, col: 1, row: 1, colorId: 0 });
   const neighborArrow = makeFruit({
@@ -74,8 +74,9 @@ test("applyPop returns neighbor arrow anchors for projectile delivery", () => {
     rayDelivery: "projectile",
   });
 
-  assert.deepEqual(chainAnchors, [neighborArrow]);
+  assert.deepEqual(chainAnchors, []);
   assert.equal(neighborArrow.colorId, 0);
+  assert.equal(system.canEmitMechanismRay(neighborArrow), true);
 });
 
 test("isBoardUnified waits for arrow flights and color presentation", () => {
