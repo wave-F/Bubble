@@ -29,6 +29,7 @@ export function createSessionFlowController({
   onPersistLevelProgress,
   onBackHomeFromResult,
   onAfterLevelLoaded,
+  onLevelLoadStarted,
   onResetVictoryPop,
   createBubbleEntity,
 } = {}) {
@@ -83,6 +84,7 @@ export function createSessionFlowController({
     state.selectedHomeLevelIndex = index;
     state.activeLevel = level;
     state.levelTransitioning = true;
+    onLevelLoadStarted?.();
     state.pointerDown = false;
     state.pressTarget = null;
     state.pressAwaitRelease = false;

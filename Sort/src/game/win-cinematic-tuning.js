@@ -7,6 +7,7 @@ export const WIN_CINEMATIC_DEFAULTS = {
   motionDuration: 0.65,
   overlayDelaySec: 1.4,
   commentaryDurationMs: 1200,
+  victoryPopStartDelaySec: 0,
   popInitialInterval: 0.11,
   popAccelFactor: 0.78,
   popMinInterval: 0.035,
@@ -43,6 +44,7 @@ export function createWinCinematicTuning(initial = {}) {
     state.motionDuration = clampNumber(state.motionDuration, 0.1, 5);
     state.overlayDelaySec = clampNumber(state.overlayDelaySec, 0.1, 8);
     state.commentaryDurationMs = Math.round(clampNumber(state.commentaryDurationMs, 200, 8000));
+    state.victoryPopStartDelaySec = clampNumber(state.victoryPopStartDelaySec, 0, 3);
     state.popInitialInterval = clampNumber(state.popInitialInterval, 0.02, 1);
     state.popAccelFactor = clampNumber(state.popAccelFactor, 0.5, 0.99);
     state.popMinInterval = clampNumber(state.popMinInterval, 0.01, 0.5);

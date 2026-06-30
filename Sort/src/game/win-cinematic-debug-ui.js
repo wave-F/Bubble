@@ -5,6 +5,7 @@ const FIELD_SPECS = [
   { key: "motionDuration", label: "Bg/grid fade (s)", step: 0.05, min: 0.1, max: 5 },
   { key: "overlayDelaySec", label: "Modal delay (s)", step: 0.05, min: 0.1, max: 8 },
   { key: "commentaryDurationMs", label: "Pill duration (ms)", step: 50, min: 200, max: 8000 },
+  { key: "victoryPopStartDelaySec", label: "Pre-pop hold (s)", step: 0.05, min: 0, max: 3 },
   { key: "popInitialInterval", label: "Pop start (s)", step: 0.01, min: 0.02, max: 1 },
   { key: "popAccelFactor", label: "Pop accel", step: 0.01, min: 0.5, max: 0.99 },
   { key: "popMinInterval", label: "Pop min (s)", step: 0.005, min: 0.01, max: 0.5 },

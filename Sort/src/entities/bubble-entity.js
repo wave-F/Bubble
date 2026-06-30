@@ -7,6 +7,7 @@ import {
 } from "three/tsl";
 import { buildBubblePressNodes } from "../materials/bubble-press-nodes.js";
 import { createMechanismArrow } from "./mechanism-arrow-visual.js";
+import { POP_WAVE_COLOR_FLASH } from "../systems/pop-wave-system.js";
 
 const BubbleBurstState = {
   IDLE: "IDLE",
@@ -24,9 +25,9 @@ const BubbleSpawnState = {
 const PopWavePhase = {
   IDLE: "IDLE",
   WAIT: "WAIT",
-  RISE: "RISE",
-  SINK: "SINK",
-  RECOVER: "RECOVER",
+  SQUASH: "SQUASH",
+  OVERSHOOT: "OVERSHOOT",
+  SETTLE: "SETTLE",
 };
 
 function smoothstep01(t) {
@@ -144,6 +145,7 @@ export function createBubbleEntityClass({
   wallBounceRestitution = 0.92,
   burstSystem,
   createBubbleMaterialFn,
+  getBubblePopTuning,
 } = {}) {
   const createMaterial = createBubbleMaterialFn || ((baseColor) => createBubbleMaterial(baseColor, bubbleTuning));
 
@@ -189,6 +191,8 @@ export function createBubbleEntityClass({
       this.pressFillRate = bubbleTuning.pressFillRate ?? 2.86;
       this.pressSpringMax = bubbleTuning.pressSpringMax ?? 0.55;
       this.pressContactStrength = bubbleTuning.pressContactStrength ?? 0.72;
+      this.pressExpandAmount = bubbleTuning.pressExpand ?? 0.34;
+      this.pressCompressAmount = bubbleTuning.pressCompress ?? 0.72;
       this.wallBounceRestitution = wallBounceRestitution;
       this.motionMode = motionMode;
       this.gridCol = gridCol;
@@ -201,6 +205,9 @@ export function createBubbleEntityClass({
       this.idleOffsetX = (Math.random() - 0.5) * 0.35;
       this.idleOffsetY = (Math.random() - 0.5) * 0.35;
       this.dyePulse = 0;
+      this.pressNeighborPushTarget = new THREE.Vector2(0, 0);
+      this.pressNeighborPush = new THREE.Vector2(0, 0);
+      this.pressNeighborPushVel = new THREE.Vector2(0, 0);
 
       this.spawnState = BubbleSpawnState.READY;
       this.spawnDelay = 0;
@@ -216,11 +223,21 @@ export function createBubbleEntityClass({
       this.popWaveElapsed = 0;
       this.popWaveScaleMul = 1;
       this.popWaveDelay = 0;
-      this.popWaveScalePeak = 1.14;
-      this.popWaveScaleDip = 0.86;
-      this.popWaveRiseDuration = 0.14;
-      this.popWaveSinkDuration = 0.1;
-      this.popWaveRecoverDuration = 0.16;
+      this.popWaveScalePeak = 1.2;
+      this.popWaveScaleDip = 0.88;
+      this.popWaveSquashDuration = 0.07;
+      this.popWaveOvershootDuration = 0.11;
+      this.popWaveSettleDuration = 0.13;
+
+      this.dyePresentFrom = new THREE.Color();
+      this.dyePresentTarget = new THREE.Color();
+      this.popWaveColorTargetSnap = new THREE.Color();
+      this.popWaveFlashColor = new THREE.Color(POP_WAVE_COLOR_FLASH);
+      this.popWaveActiveFlashColor = new THREE.Color(POP_WAVE_COLOR_FLASH);
+      this.popWaveFlashAccent = new THREE.Color(POP_WAVE_COLOR_FLASH).offsetHSL(0, -0.05, 0.04);
+      this.popWaveDisplayAccent = new THREE.Color();
+      this.dyePresentHoldOld = false;
+      this.popWaveColorActive = false;
 
       this.group = new THREE.Group();
 
@@ -281,6 +298,111 @@ export function createBubbleEntityClass({
       this.setBaseColor(nextColor);
     }
 
+    beginDyePresentation(colorId, baseColor) {
+      const nextColor = baseColor instanceof THREE.Color
+        ? baseColor
+        : new THREE.Color(baseColor);
+      this.colorId = colorId;
+      this.dyePresentFrom.copy(this.baseColor);
+      this.dyePresentTarget.copy(nextColor);
+      this.dyePresentHoldOld = true;
+    }
+
+    clearPopWaveColorPresentation({ commitTarget = false } = {}) {
+      if (commitTarget && this.dyePresentHoldOld) {
+        this.setBaseColor(this.dyePresentTarget);
+      }
+      this.dyePresentHoldOld = false;
+      this.popWaveColorActive = false;
+    }
+
+    getPresentationTargetColor() {
+      if (this.dyePresentHoldOld) return this.dyePresentTarget;
+      return this.popWaveColorTargetSnap;
+    }
+
+    setTintDisplay(color) {
+      if (!color) return;
+      const accent = this.popWaveDisplayAccent.copy(color).offsetHSL(0, 0.1, 0.2);
+      if (this.tintUniform?.value) this.tintUniform.value.copy(color);
+      if (this.accentUniform?.value) this.accentUniform.value.copy(accent);
+    }
+
+    setTintDisplayLerp(fromColor, toColor, t) {
+      const smooth = smoothstep01(t);
+      if (this.tintUniform?.value) {
+        this.tintUniform.value.copy(fromColor).lerp(toColor, smooth);
+      }
+      const accentFrom = this.popWaveDisplayAccent.copy(fromColor).offsetHSL(0, 0.1, 0.2);
+      const accentTo = this.popWaveFlashAccent.copy(toColor).offsetHSL(0, 0.1, 0.2);
+      if (this.accentUniform?.value) {
+        this.accentUniform.value.copy(accentFrom).lerp(accentTo, smooth);
+      }
+    }
+
+    applyPopWaveColorFlash() {
+      if (!this.dyePresentHoldOld) {
+        this.popWaveColorTargetSnap.copy(this.baseColor);
+      }
+      this.popWaveColorActive = true;
+    }
+
+    resolvePopWaveFlashColor() {
+      const cfg = getBubblePopTuning?.() ?? { flashMode: "white", lightBubbleLift: 0.22 };
+      if (cfg.flashMode !== "lightBubble") {
+        this.popWaveActiveFlashColor.copy(this.popWaveFlashColor);
+        return;
+      }
+      const lift = Number.isFinite(cfg.lightBubbleLift) ? cfg.lightBubbleLift : 0.22;
+      const source = this.dyePresentHoldOld
+        ? this.dyePresentFrom
+        : this.getPresentationTargetColor();
+      this.popWaveActiveFlashColor.copy(source).offsetHSL(0, 0, lift);
+    }
+
+    updatePopWaveColorPresentation() {
+      const phase = this.popWavePhase;
+      const waveRunning = phase !== PopWavePhase.IDLE;
+      if (!this.popWaveColorActive && !this.dyePresentHoldOld) return;
+
+      if (phase === PopWavePhase.WAIT && this.dyePresentHoldOld) {
+        this.setTintDisplay(this.dyePresentFrom);
+        return;
+      }
+
+      if (phase === PopWavePhase.IDLE && this.dyePresentHoldOld && !this.popWaveColorActive) {
+        this.setTintDisplay(this.dyePresentFrom);
+        return;
+      }
+
+      if (phase === PopWavePhase.SQUASH || phase === PopWavePhase.OVERSHOOT) {
+        this.resolvePopWaveFlashColor();
+        this.popWaveFlashAccent.copy(this.popWaveActiveFlashColor).offsetHSL(0, 0.08, 0.06);
+        this.setTintDisplay(this.popWaveActiveFlashColor);
+        if (this.accentUniform?.value) this.accentUniform.value.copy(this.popWaveFlashAccent);
+        if (this.crackGlowUniform) this.crackGlowUniform.value = 0.22;
+        return;
+      }
+
+      if (phase === PopWavePhase.SETTLE) {
+        const dur = this.popWaveSettleDuration;
+        const t = dur > 0 ? Math.min(1, this.popWaveElapsed / dur) : 1;
+        const target = this.getPresentationTargetColor();
+        this.setTintDisplayLerp(this.popWaveActiveFlashColor, target, t);
+        if (this.crackGlowUniform) {
+          this.crackGlowUniform.value = 0.22 * (1 - smoothstep01(t));
+        }
+        return;
+      }
+
+      if (phase === PopWavePhase.IDLE && this.popWaveColorActive) {
+        this.setBaseColor(this.getPresentationTargetColor());
+        this.dyePresentHoldOld = false;
+        this.popWaveColorActive = false;
+        if (this.crackGlowUniform) this.crackGlowUniform.value = 0;
+      }
+    }
+
     playDyePulse() {
       if (!this.active || this.sliced) return;
       this.dyePulse = 0.24;
@@ -288,11 +410,14 @@ export function createBubbleEntityClass({
 
     playPopWave({
       delay = 0,
-      scalePeak = 1.14,
-      scaleDip = 0.86,
-      riseDuration = 0.14,
-      sinkDuration = 0.1,
-      recoverDuration = 0.16,
+      scalePeak = 1.2,
+      scaleDip = 0.88,
+      squashDuration = 0.07,
+      overshootDuration = 0.11,
+      settleDuration = 0.13,
+      riseDuration,
+      sinkDuration,
+      recoverDuration,
     } = {}) {
       if (!this.active || this.sliced || this.motionMode !== "grid") return;
       if (this.spawnState === BubbleSpawnState.SPAWNING) return;
@@ -300,12 +425,13 @@ export function createBubbleEntityClass({
       this.popWaveDelay = Math.max(0, delay);
       this.popWaveScalePeak = scalePeak;
       this.popWaveScaleDip = scaleDip;
-      this.popWaveRiseDuration = riseDuration;
-      this.popWaveSinkDuration = sinkDuration;
-      this.popWaveRecoverDuration = recoverDuration;
+      this.popWaveSquashDuration = squashDuration ?? riseDuration ?? 0.07;
+      this.popWaveOvershootDuration = overshootDuration ?? sinkDuration ?? 0.11;
+      this.popWaveSettleDuration = settleDuration ?? recoverDuration ?? 0.13;
       this.popWaveElapsed = 0;
       this.popWaveScaleMul = 1;
-      this.popWavePhase = this.popWaveDelay > 0 ? PopWavePhase.WAIT : PopWavePhase.RISE;
+      this.popWavePhase = this.popWaveDelay > 0 ? PopWavePhase.WAIT : PopWavePhase.SQUASH;
+      this.applyPopWaveColorFlash();
     }
 
     updatePopWave(dt) {
@@ -318,51 +444,42 @@ export function createBubbleEntityClass({
       const rest = 1;
       const peak = this.popWaveScalePeak;
       const dip = this.popWaveScaleDip;
-      const rebound = 1 + (peak - 1) * 0.35;
 
       if (this.popWavePhase === PopWavePhase.WAIT) {
         this.popWaveScaleMul = rest;
         if (this.popWaveElapsed >= this.popWaveDelay) {
           this.popWaveElapsed -= this.popWaveDelay;
-          this.popWavePhase = PopWavePhase.RISE;
+          this.popWavePhase = PopWavePhase.SQUASH;
         }
         return true;
       }
 
-      if (this.popWavePhase === PopWavePhase.RISE) {
-        const t = this.popWaveRiseDuration > 0
-          ? Math.min(1, this.popWaveElapsed / this.popWaveRiseDuration)
-          : 1;
-        this.popWaveScaleMul = lerp(rest, peak, smoothstep01(t));
+      if (this.popWavePhase === PopWavePhase.SQUASH) {
+        const dur = this.popWaveSquashDuration;
+        const t = dur > 0 ? Math.min(1, this.popWaveElapsed / dur) : 1;
+        this.popWaveScaleMul = lerp(rest, dip, smoothstep01(t));
         if (t >= 1) {
           this.popWaveElapsed = 0;
-          this.popWavePhase = PopWavePhase.SINK;
+          this.popWavePhase = PopWavePhase.OVERSHOOT;
         }
         return true;
       }
 
-      if (this.popWavePhase === PopWavePhase.SINK) {
-        const t = this.popWaveSinkDuration > 0
-          ? Math.min(1, this.popWaveElapsed / this.popWaveSinkDuration)
-          : 1;
-        this.popWaveScaleMul = lerp(peak, dip, smoothstep01(t));
+      if (this.popWavePhase === PopWavePhase.OVERSHOOT) {
+        const dur = this.popWaveOvershootDuration;
+        const t = dur > 0 ? Math.min(1, this.popWaveElapsed / dur) : 1;
+        this.popWaveScaleMul = lerp(dip, peak, smoothstep01(t));
         if (t >= 1) {
           this.popWaveElapsed = 0;
-          this.popWavePhase = PopWavePhase.RECOVER;
+          this.popWavePhase = PopWavePhase.SETTLE;
         }
         return true;
       }
 
-      if (this.popWavePhase === PopWavePhase.RECOVER) {
-        const duration = this.popWaveRecoverDuration;
-        const t = duration > 0 ? Math.min(1, this.popWaveElapsed / duration) : 1;
-        if (t < 0.62) {
-          const t2 = t / 0.62;
-          this.popWaveScaleMul = lerp(dip, rebound, smoothstep01(t2));
-        } else {
-          const t2 = (t - 0.62) / 0.38;
-          this.popWaveScaleMul = lerp(rebound, rest, smoothstep01(t2));
-        }
+      if (this.popWavePhase === PopWavePhase.SETTLE) {
+        const dur = this.popWaveSettleDuration;
+        const t = dur > 0 ? Math.min(1, this.popWaveElapsed / dur) : 1;
+        this.popWaveScaleMul = lerp(peak, rest, smoothstep01(t));
         if (t >= 1) {
           this.popWaveScaleMul = rest;
           this.popWavePhase = PopWavePhase.IDLE;
@@ -516,13 +633,61 @@ export function createBubbleEntityClass({
       return false;
     }
 
+    /** Effective world radius toward a horizontal unit direction (matches press shader bulge). */
+    computePressExpandedRadiusToward(dirX, dirY) {
+      const len = Math.hypot(dirX, dirY);
+      if (len < 1e-5) return this.radius;
+      const ux = dirX / len;
+      const uy = dirY / len;
+      const cd = this.contactDir;
+      const uDotCd = ux * cd.x + uy * cd.y;
+      const u2 = uDotCd * uDotCd;
+      const spring = this.springVal ?? 0;
+      const compressMul = 1 - spring * this.pressCompressAmount;
+      const expandMul = 1 + spring * this.pressExpandAmount;
+      const radialMul = u2 * compressMul + (1 - u2) * expandMul;
+      const meshScaleMul = this.bubble.scale.x / Math.max(this.baseScale, 1e-6);
+      return this.radius * radialMul * meshScaleMul;
+    }
+
+    integratePressNeighborPush(dt) {
+      const spring = 100;
+      const damping = 9;
+      const target = this.pressNeighborPushTarget;
+      const push = this.pressNeighborPush;
+      const vel = this.pressNeighborPushVel;
+      const damp = Math.exp(-damping * dt);
+
+      vel.x += (target.x - push.x) * spring * dt;
+      vel.y += (target.y - push.y) * spring * dt;
+      vel.x *= damp;
+      vel.y *= damp;
+      push.x += vel.x * dt;
+      push.y += vel.y * dt;
+
+      if (
+        Math.abs(target.x - push.x) < 0.0005
+        && Math.abs(target.y - push.y) < 0.0005
+        && Math.abs(vel.x) < 0.0005
+        && Math.abs(vel.y) < 0.0005
+        && target.x === 0
+        && target.y === 0
+      ) {
+        push.set(0, 0);
+        vel.set(0, 0);
+      }
+    }
+
     updateGridIdle(dt) {
+      this.integratePressNeighborPush(dt);
+
       if (this.isBeingPressed) {
         this.bubble.position.set(0, 0, 0);
         return;
       }
 
       this.updatePopWave(dt);
+      this.updatePopWaveColorPresentation();
 
       if (this.dyePulse > 0) {
         this.dyePulse = Math.max(0, this.dyePulse - dt);
@@ -536,8 +701,8 @@ export function createBubbleEntityClass({
       const dyeScale = 1 + dyeT * 0.12;
 
       this.bubble.position.set(
-        wobbleX * this.radius * 0.028,
-        wobbleY * this.radius * 0.028,
+        wobbleX * this.radius * 0.028 + this.pressNeighborPush.x,
+        wobbleY * this.radius * 0.028 + this.pressNeighborPush.y,
         0
       );
       const waveScale = this.popWavePhase === PopWavePhase.IDLE ? 1 : this.popWaveScaleMul;
@@ -553,8 +718,13 @@ export function createBubbleEntityClass({
       this.vel.y -= impulse * normalY;
     }
 
-    pop(sliceDir, speed) {
+    pop(sliceDir, speed, { burstWhite = false } = {}) {
       if (this.sliced) return;
+      this.burstVisualWhite = burstWhite;
+      this.clearPopWaveColorPresentation({ commitTarget: true });
+      if (burstWhite) {
+        this.setTintDisplay(this.popWaveFlashColor);
+      }
       this.releasePress();
       this.setSelected(false);
       this.sliced = true;
