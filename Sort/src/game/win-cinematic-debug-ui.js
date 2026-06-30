@@ -135,7 +135,7 @@ export function createWinCinematicDebugUi({
       previewRaf = 0;
       victoryPresentation.stop?.();
       gameUI?.openSimpleLevelWin?.({
-        title: `第 ${(rt.getLevelNumber?.() ?? 0) + 1} 关通关！`,
+        title: `第${(rt.getLevelNumber?.() ?? 0) + 1}关通关`,
         actionText: "下一关",
         variant: "win",
         onAction: () => {
@@ -159,7 +159,7 @@ export function createWinCinematicDebugUi({
     const level = (rt?.getLevelNumber?.() ?? 0) + 1;
     tuning.applyLoseCssVars();
     rt?.gameUI?.openSimpleLevelWin?.({
-      title: `第 ${level} 关失败`,
+      title: `第${level}关失败`,
       desc: "步数用完了",
       actionText: "重新开始",
       variant: "lose",

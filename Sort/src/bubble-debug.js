@@ -15,7 +15,14 @@ import {
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { buildBubblePressNodes } from "./materials/bubble-press-nodes.js";
 import { applyBubbleSceneEnvironment } from "./content/bubble-environment.js";
-import { createMechanismArrow } from "./entities/mechanism-arrow-visual.js";
+import {
+  ARROW_MS_PER_CELL,
+  ARROW_TRAVEL_Z,
+  GRID_BUBBLE_RENDER_ORDER,
+  createMechanismArrow,
+  mechanismArrowOutlineDefaults,
+  prepareProjectileArrowDraw,
+} from "./entities/mechanism-arrow-visual.js";
 
 const compatEl = document.getElementById("compat");
 const swatches = Array.from(document.querySelectorAll(".swatch"));
@@ -28,6 +35,24 @@ const popProgressValue = document.querySelector('[data-value-for="p-pop-progress
 const tuningStorageKey = "bubble_tuning_v1";
 const debugBuildTag = "press-pbr-2026-06-26";
 const bubbleBaseRadius = 1.2;
+const palette = [0xff1f4b, 0xff9800, 0x12cf5b, 0x1b8fff];
+
+const LanePopWavePhase = {
+  IDLE: "IDLE",
+  WAIT: "WAIT",
+  RISE: "RISE",
+  SINK: "SINK",
+  RECOVER: "RECOVER",
+};
+
+function smoothstep01(t) {
+  const c = Math.max(0, Math.min(1, t));
+  return c * c * (3 - 2 * c);
+}
+
+function lerp01(a, b, t) {
+  return a + (b - a) * t;
+}
 
 function refreshBubbleDebugLocale() {
   applyDomI18n(document);
@@ -119,6 +144,21 @@ let bombModeEnabled = defaults.toggleBomb;
 let mechanismArrowEnabled = defaults.toggleMechanismArrow;
 let mechanismDirection = defaults.mechanismDirection;
 let mechanismArrowGroup = null;
+let arrowOutlineScale = mechanismArrowOutlineDefaults.outlineScale;
+let arrowOutlineZ = mechanismArrowOutlineDefaults.outlineZ;
+let arrowFlightPreviewActive = false;
+let flightPreviewSegment = 0;
+let flightPreviewSegmentT = 0;
+const flightPreviewLaneSteps = [];
+const flightPreviewRoot = new THREE.Group();
+const laneBubbleMeshes = [];
+const lanePopWaveStates = [];
+let flightArrowGroup = null;
+let pierceColorHex = palette[0];
+const flightPreviewAxis = new THREE.Vector3();
+const flightPreviewStart = new THREE.Vector3();
+const flightPreviewEnd = new THREE.Vector3();
+const cellStride = bubbleBaseRadius * 2.35;
 let isPressing = false;
 let pressAmount = 0;
 let pressFillRate = defaults.pressFillRate;
@@ -219,8 +259,165 @@ material.iridescenceNode = iridescenceUniform.mul(iridescenceEnabledUniform);
 material.iridescenceIORNode = uniform(1.3);
 material.iridescenceThicknessNode = dyeMix.mul(iridescenceSpanUniform).add(iridescenceBaseUniform);
 
+function applyTintToLaneMaterial(laneMat, hexValue) {
+  const tint = laneMat.userData?.laneTintUniform;
+  const accent = laneMat.userData?.laneAccentUniform;
+  if (!tint || !accent) return;
+  const base = new THREE.Color(hexValue);
+  const accentColor = base.clone().offsetHSL(0, -0.12, 0.26);
+  tint.value.copy(base);
+  accent.value.copy(accentColor);
+}
+
+function createLaneBubbleMaterial(hexValue) {
+  const laneTintUniform = uniform(new THREE.Color(hexValue));
+  const laneAccentUniform = uniform(
+    new THREE.Color(hexValue).offsetHSL(0, -0.12, 0.26),
+  );
+  const laneDyeColor = laneTintUniform.mix(laneAccentUniform, dyeBlend);
+  const laneMat = material.clone();
+  laneMat.colorNode = laneTintUniform.mix(laneDyeColor, dyeEnabledUniform);
+  laneMat.emissiveNode = laneTintUniform.mul(
+    pressNodes.fresnelEdge.mul(edgeGlowUniform.add(crackGlowUniform)).mul(edgeEnabledUniform),
+  );
+  laneMat.userData.laneTintUniform = laneTintUniform;
+  laneMat.userData.laneAccentUniform = laneAccentUniform;
+  return laneMat;
+}
+
+function createIdleLanePopWaveState() {
+  return {
+    phase: LanePopWavePhase.IDLE,
+    elapsed: 0,
+    delay: 0,
+    scalePeak: 1.16,
+    scaleDip: 0.84,
+    riseDuration: 0.14,
+    sinkDuration: 0.1,
+    recoverDuration: 0.16,
+    scaleMul: 1,
+  };
+}
+
+function playPopWaveOnLane(laneIndex) {
+  const state = lanePopWaveStates[laneIndex];
+  if (!state) return;
+  state.delay = 0;
+  state.scalePeak = 1.16;
+  state.scaleDip = 0.84;
+  state.riseDuration = 0.14;
+  state.sinkDuration = 0.1;
+  state.recoverDuration = 0.16;
+  state.elapsed = 0;
+  state.scaleMul = 1;
+  state.phase = LanePopWavePhase.RISE;
+}
+
+function updateLanePopWaveState(state, dt) {
+  if (state.phase === LanePopWavePhase.IDLE) {
+    state.scaleMul = 1;
+    return;
+  }
+
+  state.elapsed += dt;
+  const rest = 1;
+  const peak = state.scalePeak;
+  const dip = state.scaleDip;
+  const rebound = 1 + (peak - 1) * 0.35;
+
+  if (state.phase === LanePopWavePhase.WAIT) {
+    state.scaleMul = rest;
+    if (state.elapsed >= state.delay) {
+      state.elapsed -= state.delay;
+      state.phase = LanePopWavePhase.RISE;
+    }
+    return;
+  }
+
+  if (state.phase === LanePopWavePhase.RISE) {
+    const t = state.riseDuration > 0
+      ? Math.min(1, state.elapsed / state.riseDuration)
+      : 1;
+    state.scaleMul = lerp01(rest, peak, smoothstep01(t));
+    if (t >= 1) {
+      state.elapsed = 0;
+      state.phase = LanePopWavePhase.SINK;
+    }
+    return;
+  }
+
+  if (state.phase === LanePopWavePhase.SINK) {
+    const t = state.sinkDuration > 0
+      ? Math.min(1, state.elapsed / state.sinkDuration)
+      : 1;
+    state.scaleMul = lerp01(peak, dip, smoothstep01(t));
+    if (t >= 1) {
+      state.elapsed = 0;
+      state.phase = LanePopWavePhase.RECOVER;
+    }
+    return;
+  }
+
+  if (state.phase === LanePopWavePhase.RECOVER) {
+    const duration = state.recoverDuration;
+    const t = duration > 0 ? Math.min(1, state.elapsed / duration) : 1;
+    if (t < 0.62) {
+      const t2 = t / 0.62;
+      state.scaleMul = lerp01(dip, rebound, smoothstep01(t2));
+    } else {
+      const t2 = (t - 0.62) / 0.38;
+      state.scaleMul = lerp01(rebound, rest, smoothstep01(t2));
+    }
+    if (t >= 1) {
+      state.scaleMul = rest;
+      state.phase = LanePopWavePhase.IDLE;
+      state.elapsed = 0;
+    }
+  }
+}
+
+function laneStartColorHex(laneIndex) {
+  return palette[(activeColorIndex + laneIndex + 1) % palette.length];
+}
+
+function resetLanePiercePreview() {
+  pierceColorHex = palette[activeColorIndex];
+  for (let i = 0; i < laneBubbleMeshes.length; i += 1) {
+    const mesh = laneBubbleMeshes[i];
+    applyTintToLaneMaterial(mesh.material, laneStartColorHex(i));
+    mesh.userData.piercedToHex = null;
+    mesh.scale.setScalar(1);
+    const wave = lanePopWaveStates[i] ?? createIdleLanePopWaveState();
+    Object.assign(wave, createIdleLanePopWaveState());
+    lanePopWaveStates[i] = wave;
+  }
+}
+
+function pierceLaneBubble(laneIndex) {
+  const mesh = laneBubbleMeshes[laneIndex];
+  if (!mesh?.material) return;
+
+  const targetHex = pierceColorHex;
+  if (mesh.userData.piercedToHex === targetHex) return;
+
+  applyTintToLaneMaterial(mesh.material, targetHex);
+  mesh.userData.piercedToHex = targetHex;
+  playPopWaveOnLane(laneIndex);
+}
+
+function updateLanePopWaves(dt) {
+  for (let i = 0; i < laneBubbleMeshes.length; i += 1) {
+    const state = lanePopWaveStates[i];
+    if (!state) continue;
+    updateLanePopWaveState(state, dt);
+    laneBubbleMeshes[i].scale.setScalar(state.scaleMul);
+  }
+}
+
 const bubble = new THREE.Mesh(bubbleGeometry, material);
+bubble.renderOrder = GRID_BUBBLE_RENDER_ORDER;
 scene.add(bubble);
+scene.add(flightPreviewRoot);
 
 const bombGroup = new THREE.Group();
 const bombCore = new THREE.Mesh(
@@ -281,17 +478,166 @@ bombGroup.add(bombRing);
 bombGroup.visible = false;
 bubble.add(bombGroup);
 
+function gridDirectionToWorld(direction, target = flightPreviewAxis) {
+  switch (direction) {
+    case "right":
+      return target.set(1, 0, 0);
+    case "left":
+      return target.set(-1, 0, 0);
+    case "up":
+      return target.set(0, 1, 0);
+    case "down":
+      return target.set(0, -1, 0);
+    default:
+      return target.set(0, 1, 0);
+  }
+}
+
+function disposeFlightArrowGroup() {
+  if (!flightArrowGroup) return;
+  scene.remove(flightArrowGroup);
+  flightArrowGroup.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+      else obj.material.dispose();
+    }
+  });
+  flightArrowGroup = null;
+}
+
+function rebuildFlightPreviewSteps() {
+  flightPreviewLaneSteps.length = 0;
+  flightPreviewLaneSteps.push(bubble.position.clone());
+  for (let i = 0; i < laneBubbleMeshes.length; i += 1) {
+    flightPreviewLaneSteps.push(laneBubbleMeshes[i].position.clone());
+  }
+}
+
+function disposeLaneBubbleMesh(mesh) {
+  if (!mesh) return;
+  flightPreviewRoot.remove(mesh);
+  if (mesh.material && mesh.material !== material) {
+    mesh.material.dispose();
+  }
+}
+
+function rebuildLaneBubbles() {
+  for (const mesh of laneBubbleMeshes) {
+    disposeLaneBubbleMesh(mesh);
+  }
+  laneBubbleMeshes.length = 0;
+  lanePopWaveStates.length = 0;
+
+  const axis = gridDirectionToWorld(mechanismDirection);
+  for (let i = 1; i <= 3; i += 1) {
+    const laneIndex = i - 1;
+    const laneMat = createLaneBubbleMaterial(laneStartColorHex(laneIndex));
+    const laneBubble = new THREE.Mesh(bubbleGeometry, laneMat);
+    laneBubble.position.copy(axis).multiplyScalar(cellStride * i);
+    laneBubble.renderOrder = GRID_BUBBLE_RENDER_ORDER;
+    laneBubble.userData.piercedToHex = null;
+    flightPreviewRoot.add(laneBubble);
+    laneBubbleMeshes.push(laneBubble);
+    lanePopWaveStates.push(createIdleLanePopWaveState());
+  }
+  rebuildFlightPreviewSteps();
+  if (arrowFlightPreviewActive) resetLanePiercePreview();
+}
+
+function rebuildFlightArrowGroup() {
+  disposeFlightArrowGroup();
+  flightArrowGroup = createMechanismArrow(mechanismDirection, bubbleBaseRadius, {
+    outlineScale: arrowOutlineScale,
+    outlineZ: arrowOutlineZ,
+  });
+  prepareProjectileArrowDraw(flightArrowGroup);
+  flightArrowGroup.visible = arrowFlightPreviewActive;
+  flightArrowGroup.position.z = ARROW_TRAVEL_Z;
+  scene.add(flightArrowGroup);
+}
+
 function mountMechanismArrow(direction) {
   if (mechanismArrowGroup) {
     bubble.remove(mechanismArrowGroup);
+    mechanismArrowGroup.traverse((obj) => {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+        else obj.material.dispose();
+      }
+    });
     mechanismArrowGroup = null;
   }
-  mechanismArrowGroup = createMechanismArrow(direction, bubbleBaseRadius);
-  mechanismArrowGroup.visible = mechanismArrowEnabled;
+  mechanismArrowGroup = createMechanismArrow(direction, bubbleBaseRadius, {
+    outlineScale: arrowOutlineScale,
+    outlineZ: arrowOutlineZ,
+  });
+  mechanismArrowGroup.visible = mechanismArrowEnabled && !arrowFlightPreviewActive;
   bubble.add(mechanismArrowGroup);
+  rebuildLaneBubbles();
+  rebuildFlightArrowGroup();
+  updateFlightPreviewLaneVisibility();
 }
 
 mountMechanismArrow(mechanismDirection);
+
+function updateFlightPreviewLaneVisibility() {
+  const showLane = mechanismArrowEnabled || arrowFlightPreviewActive;
+  flightPreviewRoot.visible = showLane;
+}
+
+function setArrowFlightPreviewActive(active) {
+  arrowFlightPreviewActive = active;
+  flightPreviewSegment = 0;
+  flightPreviewSegmentT = 0;
+  if (active) {
+    pierceColorHex = palette[activeColorIndex];
+    resetLanePiercePreview();
+  }
+  if (flightArrowGroup) {
+    flightArrowGroup.visible = active;
+    if (active && flightPreviewLaneSteps.length > 0) {
+      flightArrowGroup.position.copy(flightPreviewLaneSteps[0]);
+      flightArrowGroup.position.z = ARROW_TRAVEL_Z;
+    }
+  }
+  updateMechanismArrowVisual();
+  updateFlightPreviewLaneVisibility();
+  const btn = document.getElementById("preview-arrow-flight");
+  if (btn) {
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  }
+}
+
+function updateArrowFlightPreview(dt) {
+  if (!arrowFlightPreviewActive || !flightArrowGroup || flightPreviewLaneSteps.length < 2) return;
+
+  const segmentDuration = ARROW_MS_PER_CELL / 1000;
+  flightPreviewSegmentT += dt;
+  const fromIdx = flightPreviewSegment;
+  const toIdx = Math.min(fromIdx + 1, flightPreviewLaneSteps.length - 1);
+  flightPreviewStart.copy(flightPreviewLaneSteps[fromIdx]);
+  flightPreviewEnd.copy(flightPreviewLaneSteps[toIdx]);
+
+  const u = Math.min(1, flightPreviewSegmentT / segmentDuration);
+  flightArrowGroup.position.lerpVectors(flightPreviewStart, flightPreviewEnd, u);
+  flightArrowGroup.position.z = ARROW_TRAVEL_Z;
+
+  if (u < 1) return;
+
+  if (toIdx >= 1) {
+    pierceLaneBubble(toIdx - 1);
+  }
+
+  flightPreviewSegmentT = 0;
+  flightPreviewSegment += 1;
+  if (flightPreviewSegment >= flightPreviewLaneSteps.length - 1) {
+    flightPreviewSegment = 0;
+    resetLanePiercePreview();
+  }
+}
 
 const BubbleState = {
   IDLE: "IDLE",
@@ -348,8 +694,6 @@ for (let i = 0; i < burstBubbleCount; i += 1) {
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-const palette = [0xff1f4b, 0xff9800, 0x12cf5b, 0x1b8fff];
-
 function setBubbleColor(hexValue) {
   const base = new THREE.Color(hexValue);
   const accent = base.clone().offsetHSL(0, -0.12, 0.26);
@@ -361,6 +705,8 @@ function applyPaletteIndex(index) {
   activeColorIndex = ((index % palette.length) + palette.length) % palette.length;
   const color = palette[activeColorIndex];
   setBubbleColor(color);
+  pierceColorHex = color;
+  if (arrowFlightPreviewActive) resetLanePiercePreview();
   swatches.forEach((btn, idx) => btn.classList.toggle("is-active", idx === activeColorIndex));
 }
 
@@ -573,6 +919,7 @@ bindToggle("t-bomb", (checked) => {
 });
 bindToggle("t-mechanism-arrow", (checked) => {
   mechanismArrowEnabled = checked;
+  if (!checked && arrowFlightPreviewActive) setArrowFlightPreviewActive(false);
   updateMechanismArrowVisual();
 });
 for (const btn of document.querySelectorAll("[data-mechanism-direction]")) {
@@ -585,6 +932,35 @@ for (const btn of document.querySelectorAll("[data-mechanism-direction]")) {
     updateMechanismArrowVisual();
   });
 }
+
+const previewArrowFlightBtn = document.getElementById("preview-arrow-flight");
+previewArrowFlightBtn?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  if (!mechanismArrowEnabled) {
+    mechanismArrowEnabled = true;
+    setToggleValue("t-mechanism-arrow", true);
+  }
+  setArrowFlightPreviewActive(!arrowFlightPreviewActive);
+});
+
+function bindArrowOutlineControl(id, onChange) {
+  const input = document.getElementById(id);
+  if (!input) return;
+  input.addEventListener("input", () => {
+    onChange(Number(input.value));
+    const valueEl = document.querySelector(`[data-value-for="${id}"]`);
+    if (valueEl) valueEl.textContent = Number(input.value).toFixed(3);
+    mountMechanismArrow(mechanismDirection);
+    if (arrowFlightPreviewActive) setArrowFlightPreviewActive(true);
+  });
+}
+
+bindArrowOutlineControl("p-arrow-outline-scale", (v) => {
+  arrowOutlineScale = v;
+});
+bindArrowOutlineControl("p-arrow-outline-z", (v) => {
+  arrowOutlineZ = v;
+});
 
 document.getElementById("reset-btn").addEventListener("click", () => {
   setControlValue("p-transmission", defaults.transmission);
@@ -616,6 +992,11 @@ document.getElementById("reset-btn").addEventListener("click", () => {
   setToggleValue("t-bomb", defaults.toggleBomb);
   setToggleValue("t-mechanism-arrow", defaults.toggleMechanismArrow);
   mechanismDirection = defaults.mechanismDirection;
+  arrowOutlineScale = mechanismArrowOutlineDefaults.outlineScale;
+  arrowOutlineZ = mechanismArrowOutlineDefaults.outlineZ;
+  setControlValue("p-arrow-outline-scale", arrowOutlineScale);
+  setControlValue("p-arrow-outline-z", arrowOutlineZ);
+  setArrowFlightPreviewActive(false);
   mountMechanismArrow(mechanismDirection);
   syncMechanismDirectionButtons();
 
@@ -676,8 +1057,9 @@ function syncMechanismDirectionButtons() {
 function updateMechanismArrowVisual() {
   if (!mechanismArrowGroup) return;
   const bubbleAlive = bubble.visible && bubbleState !== BubbleState.DISSIPATE;
-  const visible = mechanismArrowEnabled && bubbleAlive;
+  const visible = mechanismArrowEnabled && bubbleAlive && !arrowFlightPreviewActive;
   mechanismArrowGroup.visible = visible;
+  updateFlightPreviewLaneVisibility();
 }
 
 function isBubblePressBlockedTarget(target) {
@@ -1198,6 +1580,8 @@ async function bootstrap() {
 
     updatePopState(dt);
     updateBombVisualState(elapsed);
+    updateArrowFlightPreview(dt);
+    updateLanePopWaves(dt);
     updateMechanismArrowVisual();
 
     controls.update();

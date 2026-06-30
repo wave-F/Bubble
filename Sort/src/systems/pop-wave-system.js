@@ -7,6 +7,15 @@ function isGridWaveTarget(fruit) {
   return fruit?.motionMode === "grid" && fruit.active && !fruit.sliced;
 }
 
+export function playArrowRayCellWave(fruit, { delaySec = 0 } = {}) {
+  if (!isGridWaveTarget(fruit)) return;
+  fruit.playPopWave?.({
+    delay: delaySec,
+    scalePeak: 1.16,
+    scaleDip: 0.84,
+  });
+}
+
 function crossWaveSortKey(source, neighbor) {
   const dc = neighbor.gridCol - source.gridCol;
   const dr = neighbor.gridRow - source.gridRow;

@@ -60,6 +60,7 @@ const els = {
   btnSave: document.getElementById("btn-save"),
   btnPlaytest: document.getElementById("btn-playtest"),
   btnRerollGenerate: document.getElementById("btn-reroll-generate"),
+  rerollIncludeArrows: document.getElementById("reroll-include-arrows"),
   btnSolve: document.getElementById("btn-solve"),
   btnExport: document.getElementById("btn-export"),
   btnCopy: document.getElementById("btn-copy"),
@@ -251,7 +252,7 @@ function applyGeneratedLevelToEditor(level, optimalSteps) {
   }));
 }
 
-async function runLevelGeneration({ id, name, mode }) {
+async function runLevelGeneration({ id, name, mode, includeArrowBubbles = false }) {
   if (state.generatingLevel) return;
 
   persistCurrentLevel();
@@ -270,6 +271,7 @@ async function runLevelGeneration({ id, name, mode }) {
       gridSize: size,
       difficulty,
       baseSeed: Date.now(),
+      includeArrowBubbles,
       onProgress: (payload) => {
         if (!payload?.phase) return;
         if (payload.phase === "layout") {
@@ -324,6 +326,7 @@ async function rerollCurrentLevel() {
     id: current.id,
     name: current.name,
     mode: "reroll",
+    includeArrowBubbles: Boolean(els.rerollIncludeArrows?.checked),
   });
 }
 

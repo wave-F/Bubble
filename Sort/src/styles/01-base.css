@@ -40,6 +40,9 @@
   --home-play-pad-x: clamp(42px, calc(58px * var(--ui-scale)), 64px);
   --home-play-margin-top: clamp(12px, calc(24px * var(--ui-scale)), 28px);
   --hud-level-offset-x: 0px;
+  --gameplay-restart-height: 46px;
+  --gameplay-restart-icon-size: 24px;
+  --gameplay-restart-offset-y: 0px;
   --sp-1: calc(4px * var(--space-scale));
   --sp-2: calc(8px * var(--space-scale));
   --sp-3: calc(12px * var(--space-scale));
@@ -194,17 +197,31 @@ body {
   position: absolute;
   top: calc(12px + var(--safe-top));
   left: calc(12px + var(--safe-left));
+  right: calc(12px + var(--safe-right));
   z-index: 17;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: flex-start;
   gap: 8px;
   padding: 0;
-  max-width: calc(100% - 24px - var(--safe-left) - var(--safe-right));
+  pointer-events: none;
 }
 
 .hud-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.hud-meta-row--spread {
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hud-meta-left {
   display: flex;
   align-items: center;
   justify-content: flex-start;

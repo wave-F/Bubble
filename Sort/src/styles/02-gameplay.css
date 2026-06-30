@@ -39,6 +39,56 @@
   font-size: clamp(19px, calc(22px * var(--label-scale)), 24px);
 }
 
+.hud-meta-row--spread .hud-meta-left .home-status.gameplay-hud-item {
+  min-height: var(--hud-height);
+  height: var(--hud-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.hud-meta-row--spread .gameplay-restart-btn.gameplay-hud-item {
+  min-width: var(--gameplay-restart-height, var(--hud-height));
+  width: var(--gameplay-restart-height, var(--hud-height));
+  max-width: var(--gameplay-restart-height, var(--hud-height));
+  min-height: var(--gameplay-restart-height, var(--hud-height));
+  height: var(--gameplay-restart-height, var(--hud-height));
+  padding: 0;
+}
+
+.gameplay-restart-btn {
+  flex-shrink: 0;
+  align-self: center;
+  transform: translateY(var(--gameplay-restart-offset-y, 0px));
+  cursor: pointer;
+  pointer-events: auto;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.gameplay-restart-btn:active {
+  transform: translateY(var(--gameplay-restart-offset-y, 0px)) scale(0.97);
+}
+
+.gameplay-restart-icon {
+  --restart-icon-max: calc(var(--gameplay-restart-height, 46px) - 14px);
+  display: block;
+  flex: 0 0 auto;
+  width: min(var(--gameplay-restart-icon-size, 24px), var(--restart-icon-max));
+  height: min(var(--gameplay-restart-icon-size, 24px), var(--restart-icon-max));
+  max-width: calc(100% - 10px);
+  max-height: calc(100% - 10px);
+  object-fit: contain;
+  pointer-events: none;
+}
+
 .gp-settings-icon {
   transform: translateY(-1px);
   line-height: 1;
@@ -325,6 +375,141 @@
   font-size: 12px;
   font-weight: 700;
   padding: 7px 8px;
+}
+
+#background-debug {
+  position: fixed;
+  right: 16px;
+  bottom: 56px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+#background-debug-panel {
+  width: 248px;
+  max-height: min(78vh, 640px);
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(10, 20, 33, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.background-debug-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #eff8ff;
+  letter-spacing: 0.02em;
+}
+
+.background-debug-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(202, 233, 255, 0.75);
+}
+
+.background-debug-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #cae9ff;
+  cursor: pointer;
+  user-select: none;
+}
+
+.background-debug-toggle-row select {
+  margin-left: auto;
+  max-width: 120px;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.35);
+  color: #eff8ff;
+}
+
+.background-debug-base-hex {
+  width: 100%;
+}
+
+.background-debug-toggle-row input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #6ec8ff;
+  cursor: pointer;
+}
+
+.background-debug-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.background-debug-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #cae9ff;
+}
+
+.background-debug-value {
+  min-width: 40px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 800;
+  color: #9fd6ff;
+  font-variant-numeric: tabular-nums;
+}
+
+#background-debug-panel input[type="range"] {
+  width: 100%;
+  accent-color: #6ec8ff;
+}
+
+.background-debug-reset {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.background-debug-blob-hex-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.background-debug-hex-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #cae9ff;
+}
+
+.background-debug-hex-field input {
+  width: 72px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #eff8ff;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-transform: lowercase;
 }
 
 #light-debug {

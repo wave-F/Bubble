@@ -5,7 +5,7 @@ function smoothstep(t) {
   return x * x * (3 - 2 * x);
 }
 
-export function createGridBoardSystem({ scene } = {}) {
+export function createGridBoardSystem({ scene, gridLinesEnabled = false } = {}) {
   let root = null;
   let fadeState = null;
 
@@ -21,6 +21,7 @@ export function createGridBoardSystem({ scene } = {}) {
   function show(layout, options = {}) {
     clear();
     if (!layout) return;
+    if (!gridLinesEnabled && options.showLines !== true) return;
 
     const { left, right, top, bottom, cellSize, gridSize } = layout;
     if (!Number.isFinite(cellSize) || !Number.isInteger(gridSize) || gridSize < 2) return;

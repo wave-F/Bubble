@@ -5,9 +5,18 @@ import { createGridBoardSystem } from "./systems/grid-board-system.js";
 import { createBubbleSpawnSystem } from "./systems/bubble-spawn-system.js";
 import { createPressSystem } from "./systems/press-system.js";
 import { createColorUnifySystem } from "./systems/color-unify-system.js";
-import { createPopWaveSystem } from "./systems/pop-wave-system.js";
+import { createPopWaveSystem, playArrowRayCellWave } from "./systems/pop-wave-system.js";
+import { createMechanismArrowProjectileSystem } from "./systems/mechanism-arrow-projectile-system.js";
 import { createVictoryPopSequence } from "./systems/victory-pop-sequence.js";
 import { createVictoryPresentation } from "./systems/victory-presentation-system.js";
+import {
+  createPlayfieldBackground,
+  PLAYFIELD_BACKGROUND_DEFAULTS,
+} from "./systems/playfield-background.js";
+import {
+  createBackgroundDebugUiController,
+  loadTessellatedBackgroundTuning,
+} from "./game/background-debug-ui.js";
 import { createWinCinematicTuning } from "./game/win-cinematic-tuning.js";
 import { createWinCinematicDebugUi } from "./game/win-cinematic-debug-ui.js";
 import {
@@ -82,6 +91,7 @@ const gameplayCoinTextEl = document.getElementById("gameplay-coin-text");
 const coinFlyLayerEl = document.getElementById("coin-fly-layer");
 const gameplaySettingsMaskEl = document.getElementById("gameplay-settings-mask");
 const gameplaySettingsRootEl = document.getElementById("gameplay-settings");
+const gameplayRestartBtnEl = document.getElementById("gameplay-restart-btn");
 const gameplaySettingsToggleEl = document.getElementById("gameplay-settings-toggle");
 const gameplaySettingsMusicEl = document.getElementById("gameplay-settings-music");
 const gameplaySettingsSfxEl = document.getElementById("gameplay-settings-sfx");
@@ -119,6 +129,104 @@ const levelTestSelectEl = document.getElementById("level-test-select");
 let suppressLevelTestJump = false;
 const levelTestAddCoinsBtn = document.getElementById("level-test-add-coins");
 const clearDataTestBtn = document.getElementById("clear-data-test-btn");
+const backgroundDebugToggleBtn = document.getElementById("background-debug-toggle");
+const backgroundDebugPanelEl = document.getElementById("background-debug-panel");
+const backgroundDebugResetBtn = document.getElementById("background-debug-reset");
+const backgroundPresetBtn = document.getElementById("background-preset-reference");
+const backgroundFitFluidBtn = document.getElementById("background-fit-fluid");
+const backgroundToggleFluidEl = document.getElementById("background-toggle-fluid");
+const backgroundToggleCirclesEl = document.getElementById("background-toggle-circles");
+const backgroundToggleLinearEl = document.getElementById("background-toggle-linear");
+const backgroundSliderCircleOpacityEl = document.getElementById("background-slider-circle-opacity");
+const backgroundFluidBaseHexEl = document.getElementById("background-fluid-base-hex");
+const backgroundFluidBlendSelectEl = document.getElementById("background-fluid-blend-mode");
+const backgroundSliderFluidBlobOpacityEl = document.getElementById("background-slider-fluid-blob-opacity");
+const backgroundSliderFluidBrightnessEl = document.getElementById("background-slider-fluid-brightness");
+const backgroundSliderFluidSaturationEl = document.getElementById("background-slider-fluid-saturation");
+const backgroundSliderFluidWhiteMixEl = document.getElementById("background-slider-fluid-white-mix");
+const backgroundSliderFluidSheenEl = document.getElementById("background-slider-fluid-sheen");
+const backgroundSliderFluidMeshOpacityEl = document.getElementById("background-slider-fluid-mesh-opacity");
+const backgroundSliderFluidGradientMidEl = document.getElementById("background-slider-fluid-gradient-mid");
+const backgroundSliderFluidGradientMidAlphaEl = document.getElementById(
+  "background-slider-fluid-gradient-mid-alpha",
+);
+const backgroundSliderFluidBlurEl = document.getElementById("background-slider-fluid-blur");
+const backgroundSliderFluidBlurCapEl = document.getElementById("background-slider-fluid-blur-cap");
+const backgroundSliderFluidDriftEl = document.getElementById("background-slider-fluid-drift");
+const backgroundSliderFluidDriftAmplitudeEl = document.getElementById(
+  "background-slider-fluid-drift-amplitude",
+);
+
+const backgroundBlobHexInputs = [
+  document.getElementById("background-blob-hex-0"),
+  document.getElementById("background-blob-hex-1"),
+  document.getElementById("background-blob-hex-2"),
+  document.getElementById("background-blob-hex-3"),
+  document.getElementById("background-blob-hex-4"),
+];
+const backgroundSliderRepeatEl = document.getElementById("background-slider-repeat");
+const backgroundSliderGapEl = document.getElementById("background-slider-gap");
+const backgroundSliderRadiusEl = document.getElementById("background-slider-radius");
+const backgroundTileHintEl = document.getElementById("background-tile-hint");
+const backgroundSliderScrollEl = document.getElementById("background-slider-scroll");
+const backgroundSliderPlaneEl = document.getElementById("background-slider-plane");
+const backgroundValueRepeatEl = document.querySelector('[data-value-for="background-slider-repeat"]');
+const backgroundValueGapEl = document.querySelector('[data-value-for="background-slider-gap"]');
+const backgroundValueRadiusEl = document.querySelector('[data-value-for="background-slider-radius"]');
+const backgroundValueScrollEl = document.querySelector('[data-value-for="background-slider-scroll"]');
+const backgroundValuePlaneEl = document.querySelector('[data-value-for="background-slider-plane"]');
+const backgroundValueCircleOpacityEl = document.querySelector(
+  '[data-value-for="background-slider-circle-opacity"]',
+);
+const backgroundValueFluidBlobOpacityEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-blob-opacity"]',
+);
+const backgroundValueFluidBrightnessEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-brightness"]',
+);
+const backgroundValueFluidSaturationEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-saturation"]',
+);
+const backgroundValueFluidWhiteMixEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-white-mix"]',
+);
+const backgroundValueFluidSheenEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-sheen"]',
+);
+const backgroundValueFluidMeshOpacityEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-mesh-opacity"]',
+);
+const backgroundValueFluidGradientMidEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-gradient-mid"]',
+);
+const backgroundValueFluidGradientMidAlphaEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-gradient-mid-alpha"]',
+);
+const backgroundValueFluidBlurEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-blur"]',
+);
+const backgroundValueFluidBlurCapEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-blur-cap"]',
+);
+const backgroundValueFluidDriftEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-drift"]',
+);
+const backgroundValueFluidDriftAmplitudeEl = document.querySelector(
+  '[data-value-for="background-slider-fluid-drift-amplitude"]',
+);
+const backgroundSliderRestartHeightEl = document.getElementById("background-slider-restart-height");
+const backgroundSliderRestartIconEl = document.getElementById("background-slider-restart-icon");
+const backgroundSliderRestartOffsetYEl = document.getElementById("background-slider-restart-offset-y");
+const backgroundValueRestartHeightEl = document.querySelector(
+  '[data-value-for="background-slider-restart-height"]',
+);
+const backgroundValueRestartIconEl = document.querySelector(
+  '[data-value-for="background-slider-restart-icon"]',
+);
+const backgroundValueRestartOffsetYEl = document.querySelector(
+  '[data-value-for="background-slider-restart-offset-y"]',
+);
+
 const lightDebugToggleBtn = document.getElementById("light-debug-toggle");
 const lightDebugPanelEl = document.getElementById("light-debug-panel");
 const lightDebugResetBtn = document.getElementById("light-debug-reset");
@@ -179,6 +287,7 @@ const rules = {
 
 const bubbleRadiusScale = 3;
 const bubbleTuningStorageKey = "bubble_tuning_v1";
+const tessellatedBackgroundTuningStorageKey = "tessellated_bg_tuning_v1";
 const levelProgressStorageKey = "fruit_level_progress_v1";
 const coinStorageKey = "fruit_coin_balance_v1";
 const staminaStorageKey = "fruit_stamina_v1";
@@ -293,6 +402,9 @@ const defaultUiLayoutDebugTuning = {
 
 const defaultHudDebugTuning = {
   hudLevelOffsetX: 0,
+  restartBtnHeightPx: 46,
+  restartIconSizePx: 24,
+  restartOffsetYPx: 0,
 };
 
 const loadedBubbleTuning = loadBubbleTuning();
@@ -352,6 +464,7 @@ const state = {
   outOfMovesContinueUsedInLevel: false,
 
   gameplayIntroOpen: false,
+  quickLevelRestart: false,
 };
 
 const persistence = createPersistenceController({
@@ -368,6 +481,16 @@ const persistence = createPersistenceController({
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xfffbf2);
+
+const tessellatedBackgroundTuning = loadTessellatedBackgroundTuning(
+  PLAYFIELD_BACKGROUND_DEFAULTS,
+  tessellatedBackgroundTuningStorageKey,
+);
+
+const playfieldBackground = createPlayfieldBackground({
+  scene,
+  ...tessellatedBackgroundTuning,
+});
 
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
 camera.position.set(0, 0, 12.1);
@@ -421,6 +544,12 @@ let renderer;
 const bounds = { left: -3, right: 3, top: 5, bottom: -5 };
 const fruits = [];
 
+playfieldBackground.setGetBoardContext(() => ({
+  fruits,
+  levelCells: LEVELS[state.currentLevelIndex]?.cells,
+  colors,
+}));
+
 const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
 const playPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
@@ -458,12 +587,23 @@ const burstBubbleGeometry = new THREE.SphereGeometry(1, 22, 22);
 const createBubbleMaterialForTuning = (baseColor) => createBubbleMaterial(baseColor, bubbleTuning, bubbleBaseRadius);
 
 const colorUnifySystem = createColorUnifySystem();
+const mechanismArrowProjectileSystem = createMechanismArrowProjectileSystem({
+  scene,
+  bubbleBaseRadius,
+});
+colorUnifySystem.setProjectileActiveChecker(() => mechanismArrowProjectileSystem.isActive());
 const popWaveSystem = createPopWaveSystem({
   findGridNeighborFruits: colorUnifySystem.findGridNeighborFruits,
 });
 const victoryPresentation = createVictoryPresentation({
   phoneFrameEl,
   bgFrom: 0xfffbf2,
+  setPlayfieldVictoryTint: (color) => {
+    playfieldBackground.setVictoryTint(color);
+  },
+  clearPlayfieldVictoryTint: () => {
+    playfieldBackground.clearVictoryTint();
+  },
   getTuning: () => winCinematicTuning.get(),
   getPaletteTarget: () => {
     const tuning = winCinematicTuning.get();
@@ -488,6 +628,7 @@ function resetVictoryPopState() {
   victoryPopSequence.reset();
   state.victoryPopActive = false;
   resetDefeatPopState();
+  playfieldBackground.clearVictoryTint();
   winCinematicTuning.applyCssVars();
 }
 
@@ -584,6 +725,68 @@ const winCinematicDebugUi = createWinCinematicDebugUi({
     colors,
     winCinematicTuning,
   }),
+});
+
+const backgroundDebugUi = createBackgroundDebugUiController({
+  elements: {
+    toggleBtn: backgroundDebugToggleBtn,
+    panelEl: backgroundDebugPanelEl,
+    resetBtn: backgroundDebugResetBtn,
+    presetBtn: backgroundPresetBtn,
+    fitFluidBtn: backgroundFitFluidBtn,
+    getCamera: () => camera,
+    fluidMeshToggle: backgroundToggleFluidEl,
+    circlesVisibleToggle: backgroundToggleCirclesEl,
+    linearFilterToggle: backgroundToggleLinearEl,
+    textureRepeatSlider: backgroundSliderRepeatEl,
+    textureRepeatValue: backgroundValueRepeatEl,
+    gapPxSlider: backgroundSliderGapEl,
+    gapPxValue: backgroundValueGapEl,
+    circleRadiusSlider: backgroundSliderRadiusEl,
+    circleRadiusValue: backgroundValueRadiusEl,
+    circleOpacitySlider: backgroundSliderCircleOpacityEl,
+    circleOpacityValue: backgroundValueCircleOpacityEl,
+    fluidBaseHexInput: backgroundFluidBaseHexEl,
+    fluidBlendSelect: backgroundFluidBlendSelectEl,
+    fluidBlobOpacitySlider: backgroundSliderFluidBlobOpacityEl,
+    fluidBlobOpacityValue: backgroundValueFluidBlobOpacityEl,
+    fluidBrightnessSlider: backgroundSliderFluidBrightnessEl,
+    fluidBrightnessValue: backgroundValueFluidBrightnessEl,
+    fluidSaturationSlider: backgroundSliderFluidSaturationEl,
+    fluidSaturationValue: backgroundValueFluidSaturationEl,
+    fluidWhiteMixSlider: backgroundSliderFluidWhiteMixEl,
+    fluidWhiteMixValue: backgroundValueFluidWhiteMixEl,
+    fluidSheenSlider: backgroundSliderFluidSheenEl,
+    fluidSheenValue: backgroundValueFluidSheenEl,
+    fluidMeshOpacitySlider: backgroundSliderFluidMeshOpacityEl,
+    fluidMeshOpacityValue: backgroundValueFluidMeshOpacityEl,
+    fluidGradientMidSlider: backgroundSliderFluidGradientMidEl,
+    fluidGradientMidValue: backgroundValueFluidGradientMidEl,
+    fluidGradientMidAlphaSlider: backgroundSliderFluidGradientMidAlphaEl,
+    fluidGradientMidAlphaValue: backgroundValueFluidGradientMidAlphaEl,
+    fluidBlurSlider: backgroundSliderFluidBlurEl,
+    fluidBlurValue: backgroundValueFluidBlurEl,
+    fluidBlurCapSlider: backgroundSliderFluidBlurCapEl,
+    fluidBlurCapValue: backgroundValueFluidBlurCapEl,
+    fluidDriftSlider: backgroundSliderFluidDriftEl,
+    fluidDriftValue: backgroundValueFluidDriftEl,
+    fluidDriftAmplitudeSlider: backgroundSliderFluidDriftAmplitudeEl,
+    fluidDriftAmplitudeValue: backgroundValueFluidDriftAmplitudeEl,
+    tileHintEl: backgroundTileHintEl,
+    scrollSpeedSlider: backgroundSliderScrollEl,
+    scrollSpeedValue: backgroundValueScrollEl,
+    planeSizeSlider: backgroundSliderPlaneEl,
+    planeSizeValue: backgroundValuePlaneEl,
+    blobHexInputs: backgroundBlobHexInputs,
+  },
+  background: playfieldBackground,
+  tuning: tessellatedBackgroundTuning,
+  defaults: {
+    ...PLAYFIELD_BACKGROUND_DEFAULTS,
+    blobColors: PLAYFIELD_BACKGROUND_DEFAULTS.fluidBlobs.map((b) => b.color),
+  },
+  storageKey: tessellatedBackgroundTuningStorageKey,
+  onPlayClick: () => gameAudio.playUiClickAudio(),
 });
 
 const lightDebugUi = createLightDebugUiController({
@@ -835,20 +1038,34 @@ const sessionFlow = createSessionFlowController({
   onPersistLevelProgress: persistLevelProgress,
   onBackHomeFromResult: backHomeFromResult,
   onAfterLevelLoaded: (index, level) => {
+    backgroundDebugUi.applyBoardComplement?.({
+      resetBlur: false,
+      persist: true,
+      syncUi: false,
+    });
+    const quickRestart = state.quickLevelRestart;
+    state.quickLevelRestart = false;
     state.levelTransitioning = true;
-    gridBoardSystem.show(level.gridLayout, { fadeIn: true });
-    bubbleSpawnSystem.start(fruits, level.gridLayout);
+    gridBoardSystem.show(level.gridLayout, { fadeIn: !quickRestart });
+    bubbleSpawnSystem.start(fruits, level.gridLayout, { instant: quickRestart });
+    if (quickRestart) {
+      state.levelTransitioning = false;
+    }
     gameAudio.playRandomPopAudio({ volumeScale: 0.3 });
     setGameplayRulesPanelVisible(true);
-    const gridSize = level.gridSize ?? 3;
-    const hasMechanisms = Array.isArray(level.mechanisms) && level.mechanisms.length > 0;
-    const tip = index === 0
-      ? `第1关：${gridSize}×${gridSize}，捏碎泡泡会给四周染色！`
-      : hasMechanisms
-        ? `第${index + 1}关：箭头泡泡捏碎时，四邻染色并沿箭头传到尽头`
-        : `第${index + 1}关：${gridSize}×${gridSize}，让剩下泡泡颜色一致`;
-    const duration = hasMechanisms ? 3200 : index === 0 ? 2800 : 2200;
-    gameUI.showCommentary(tip, duration);
+    if (!quickRestart) {
+      const gridSize = level.gridSize ?? 3;
+      const hasMechanisms = Array.isArray(level.mechanisms) && level.mechanisms.length > 0;
+      const tip = index === 0
+        ? `第1关：${gridSize}×${gridSize}，捏碎泡泡会给四周染色！`
+        : hasMechanisms
+          ? `第${index + 1}关：箭头泡泡捏碎时，四邻染色并沿箭头传到尽头`
+          : `第${index + 1}关：${gridSize}×${gridSize}，让剩下泡泡颜色一致`;
+      const duration = hasMechanisms ? 3200 : index === 0 ? 2800 : 2200;
+      gameUI.showCommentary(tip, duration);
+    } else {
+      gameplayTip.clear();
+    }
     void warmupBubbleRenderer({ renderer, scene, camera, fruits });
   },
   createBubbleEntity: ({
@@ -1027,7 +1244,7 @@ function createGameRuntime() {
       settlePendingWinReward(false);
       gameAudio.playGameWinAudio();
       gameUI.openSimpleLevelWin({
-        title: `第 ${current} 关通关！`,
+        title: `第${current}关通关`,
         actionText: "下一关",
         onAction: () => {
           gameAudio.playUiClickAudio();
@@ -1200,6 +1417,14 @@ function readHudDebugTuning() {
     const parsed = JSON.parse(raw);
     return {
       hudLevelOffsetX: clampNumber(parsed.hudLevelOffsetX, -40, 40, fallback.hudLevelOffsetX),
+      restartBtnHeightPx: clampNumber(
+        parsed.restartBtnHeightPx,
+        34,
+        60,
+        fallback.restartBtnHeightPx,
+      ),
+      restartIconSizePx: clampNumber(parsed.restartIconSizePx, 14, 36, fallback.restartIconSizePx),
+      restartOffsetYPx: clampNumber(parsed.restartOffsetYPx, -12, 12, fallback.restartOffsetYPx),
     };
   } catch (_err) {
     return fallback;
@@ -1208,6 +1433,62 @@ function readHudDebugTuning() {
 
 function applyHudDebugTuning(values) {
   layoutViewport.applyHudDebugTuning(values);
+}
+
+function persistHudDebugTuning() {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(hudDebugStorageKey, JSON.stringify(hudDebugTuning));
+  } catch (_err) {
+    // ignore write failures
+  }
+}
+
+function setupRestartHudDebugControls() {
+  const entries = [
+    {
+      sliderEl: backgroundSliderRestartHeightEl,
+      valueEl: backgroundValueRestartHeightEl,
+      key: "restartBtnHeightPx",
+    },
+    {
+      sliderEl: backgroundSliderRestartIconEl,
+      valueEl: backgroundValueRestartIconEl,
+      key: "restartIconSizePx",
+    },
+    {
+      sliderEl: backgroundSliderRestartOffsetYEl,
+      valueEl: backgroundValueRestartOffsetYEl,
+      key: "restartOffsetYPx",
+    },
+  ];
+
+  const syncUiFromTuning = () => {
+    for (const entry of entries) {
+      if (!entry.sliderEl) continue;
+      const value = hudDebugTuning[entry.key];
+      entry.sliderEl.value = String(value);
+      if (entry.valueEl) entry.valueEl.textContent = String(value);
+    }
+    applyHudDebugTuning(hudDebugTuning);
+  };
+
+  const onChange = () => {
+    for (const entry of entries) {
+      if (!entry.sliderEl) continue;
+      const n = Number(entry.sliderEl.value);
+      if (!Number.isFinite(n)) continue;
+      hudDebugTuning[entry.key] = n;
+      if (entry.valueEl) entry.valueEl.textContent = String(n);
+    }
+    applyHudDebugTuning(hudDebugTuning);
+    persistHudDebugTuning();
+  };
+
+  for (const entry of entries) {
+    entry.sliderEl?.addEventListener("input", onChange);
+  }
+  syncUiFromTuning();
 }
 
 function saveGameSettings() {
@@ -1269,6 +1550,28 @@ function exitGameplayToHome() {
 
 function bindGameplaySettingsMenu() {
   settingsUi.bindGameplaySettingsMenu();
+}
+
+function canRestartCurrentLevel() {
+  return state.started && state.resourcesReady && !state.gameplayIntroOpen;
+}
+
+function bindGameplayRestart() {
+  gameplayRestartBtnEl?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (!canRestartCurrentLevel()) return;
+    gameAudio.playUiClickAudio();
+    state.quickLevelRestart = true;
+    resetVictoryPopState();
+    mechanismArrowProjectileSystem.clear();
+    colorUnifySystem.clear();
+    gameplayTip.clear();
+    state.gameOver = false;
+    state.outOfMovesHandling = false;
+    state.defeatPopActive = false;
+    state.defeatModalDelayRemaining = 0;
+    sessionFlow.retryCurrentLevelSimple();
+  });
 }
 
 function clearGameplayDataOnly(options = {}) {
@@ -1760,6 +2063,8 @@ function clearBoardEntities() {
   resetVictoryPopState();
   bubbleSpawnSystem.reset();
   gridBoardSystem.clear();
+  mechanismArrowProjectileSystem.clear();
+  colorUnifySystem.clear();
   roundState.clearBoardEntities();
 }
 
@@ -1832,11 +2137,14 @@ function init() {
   bindHomeEnergyTip();
   bindHomeSettingsModal();
   bindGameplaySettingsMenu();
+  bindGameplayRestart();
   bindOutOfMovesContinueModal();
   bindGameplayIntroModal();
   gameUI.closeResult();
   setupDevLocale();
   setupLevelTestControls();
+  setupBackgroundDebugControls();
+  setupRestartHudDebugControls();
   setupLightDebugControls();
   setupWinCinematicDebugControls();
 
@@ -1851,6 +2159,10 @@ function init() {
   window.addEventListener("pointercancel", onPointerUp);
 
   setupRenderer();
+}
+
+function setupBackgroundDebugControls() {
+  backgroundDebugUi.bind();
 }
 
 function setupLightDebugControls() {
@@ -2056,6 +2368,7 @@ function startGame() {
 
 function loadLevel(index) {
   colorUnifySystem.clear();
+  mechanismArrowProjectileSystem.clear();
   return sessionFlow.loadLevel(index);
 }
 
@@ -2065,7 +2378,7 @@ function resetFruits(level) {
 
 function onPointerDown(ev) {
   if (!state.resourcesReady || !state.started || state.gameOver || state.levelTransitioning || state.victoryPopActive || state.defeatPopActive || state.gameplayIntroOpen || !renderer) return;
-  if (state.pressAwaitRelease) return;
+  if (state.pressAwaitRelease || mechanismArrowProjectileSystem.isActive()) return;
   if (state.stepLimit > 0 && state.stepsUsed >= state.stepLimit) {
     gameUI.showCommentary("Out of moves for this level.", 1000);
     return;
@@ -2119,17 +2432,37 @@ function tick() {
     consumeStep,
     onPop: () => gameAudio.playRandomPopAudio(),
     onBurst: (fruit, burstDir) => {
-      colorUnifySystem.applyPop({ source: fruit, fruits, colors });
+      const popColorId = fruit.colorId;
+      const popColorDef = colors?.[popColorId];
       if (fruit.mechanismDirection) {
-        popWaveSystem.triggerCrossWave(fruit, fruits);
-        popWaveSystem.triggerDirectionalWave(fruit, fruits);
+        colorUnifySystem.applyPop({
+          source: fruit,
+          fruits,
+          colors,
+          rayDelivery: "projectile",
+        });
+        mechanismArrowProjectileSystem.launch({
+          source: fruit,
+          fruits,
+          onPierce: (target) => {
+            const { chain } = colorUnifySystem.pierceRayTarget(target, {
+              colorId: popColorId,
+              colorDef: popColorDef,
+            });
+            playArrowRayCellWave(target);
+            return chain;
+          },
+          canEmitFrom: (anchor) => colorUnifySystem.markMechanismRayEmitted(anchor),
+        });
       } else {
+        colorUnifySystem.applyPop({ source: fruit, fruits, colors });
         popWaveSystem.triggerCrossWave(fruit, fruits);
       }
       fruit.pop(burstDir, 2.4);
     },
   });
   processPendingPops(dt);
+  mechanismArrowProjectileSystem.update(dt);
   colorUnifySystem.update();
   updateHomeBubbles(dt);
   if (state.inHome && wallNow - state.staminaUiSyncAt >= 1000) {
@@ -2156,6 +2489,7 @@ function tick() {
   }
 
   bubbleSpawnSystem.update(dt);
+  playfieldBackground.update(dt);
 
   renderer.render(scene, camera);
 
@@ -2225,6 +2559,7 @@ function tick() {
     && remaining > 0
     && !state.pointerDown
     && state.pendingPops.length === 0
+    && !mechanismArrowProjectileSystem.isActive()
   ) {
     triggerOutOfMovesContinueFlow();
   }

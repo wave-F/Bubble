@@ -53,29 +53,31 @@
       </div>
 
       <div id="hud" aria-label="关卡状态">
-        <div class="hud-meta-row">
-          <div class="home-status gameplay-hud-item" aria-label="剩余步数">
-            <span id="score" class="home-status-value">MOVE:0</span>
+        <div class="hud-meta-row hud-meta-row--spread">
+          <div class="hud-meta-left">
+            <div class="home-status gameplay-hud-item" aria-label="剩余步数">
+              <span id="score" class="home-status-value">MOVE:0</span>
+            </div>
+            <div class="home-status gameplay-hud-item" aria-label="当前关卡">
+              <span id="hud-level" class="home-status-value">LV:1</span>
+            </div>
           </div>
-          <div class="home-status gameplay-hud-item" aria-label="当前关卡">
-            <span id="hud-level" class="home-status-value">LV:1</span>
-          </div>
+          <button
+            id="gameplay-restart-btn"
+            type="button"
+            class="home-status gameplay-hud-item gameplay-restart-btn"
+            data-i18n-aria="index.gameplay.restartAria"
+            aria-label="重新开始"
+          >
+            <img
+              class="gameplay-restart-icon"
+              src="./assets/images/iconShade_Restart.png"
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+            />
+          </button>
         </div>
-      </div>
-
-      <div id="gameplay-settings-mask" class="hidden" aria-hidden="true"></div>
-
-      <div id="gameplay-settings" class="hidden" aria-label="局内设置">
-        <button id="gameplay-settings-toggle" class="home-mini-btn gp-settings-btn gp-main-btn" type="button" aria-label="打开局内设置">⚙️</button>
-        <button id="gameplay-settings-music" class="gp-settings-btn gp-settings-item" type="button" aria-label="音乐">
-          <span class="gp-settings-icon" aria-hidden="true">🎵</span>
-        </button>
-        <button id="gameplay-settings-sfx" class="gp-settings-btn gp-settings-item" type="button" aria-label="音效">
-          <span class="gp-settings-icon" aria-hidden="true">🔊</span>
-        </button>
-        <button id="gameplay-settings-exit" class="gp-settings-btn gp-settings-item gp-exit-btn" type="button" aria-label="退出">
-          <span class="gp-settings-icon" aria-hidden="true">↩</span>
-        </button>
       </div>
 
       <div id="gameplay-exit-mask" class="hidden" aria-hidden="true"></div>
@@ -176,9 +178,11 @@
       </div>
 
       <div id="level-win" class="layer hidden">
-        <h2 id="level-win-title">关卡胜利！</h2>
-        <p id="level-win-desc" class="hidden"></p>
-        <button id="level-win-next-btn" type="button">下一关</button>
+        <div class="level-win-stack">
+          <h2 id="level-win-title">关卡胜利！</h2>
+          <p id="level-win-desc" class="hidden"></p>
+          <button id="level-win-next-btn" type="button">下一关</button>
+        </div>
       </div>
 
       <div id="game-over" class="layer hidden">
@@ -221,6 +225,233 @@
         <button id="win-cinematic-preview-win" class="tool-btn win-cinematic-action" type="button">Preview win</button>
         <button id="win-cinematic-preview-lose" class="tool-btn win-cinematic-action" type="button">Preview lose</button>
         <button id="win-cinematic-reset" class="tool-btn win-cinematic-action" type="button">Reset defaults</button>
+      </div>
+    </div>
+
+    <div id="background-debug" aria-label="Tessellated background editor">
+      <button id="background-debug-toggle" class="tool-btn" type="button">Background</button>
+      <div id="background-debug-panel" class="hidden">
+        <div class="background-debug-title">Circle background</div>
+        <p class="background-debug-hint">
+          Fluid mesh = soft pastel blobs. Circles scroll on top at low opacity.
+        </p>
+        <p id="background-tile-hint" class="background-debug-hint"></p>
+
+        <label class="background-debug-toggle-row">
+          <input id="background-toggle-fluid" type="checkbox" checked />
+          <span>Fluid mesh background</span>
+        </label>
+        <button id="background-preset-reference" class="tool-btn background-debug-reset" type="button">
+          Preset: board complement
+        </button>
+        <button id="background-fit-fluid" class="tool-btn background-debug-reset" type="button">
+          Fit fluid to view
+        </button>
+
+        <div class="background-debug-blob-hex-row">
+          <label class="background-debug-hex-field">
+            <span>Pink</span>
+            <input id="background-blob-hex-0" type="text" maxlength="6" spellcheck="false" value="e8a0c8" />
+          </label>
+          <label class="background-debug-hex-field">
+            <span>Peach</span>
+            <input id="background-blob-hex-1" type="text" maxlength="6" spellcheck="false" value="fde8dc" />
+          </label>
+          <label class="background-debug-hex-field">
+            <span>Cyan</span>
+            <input id="background-blob-hex-2" type="text" maxlength="6" spellcheck="false" value="9ed8f5" />
+          </label>
+          <label class="background-debug-hex-field">
+            <span>Mint</span>
+            <input id="background-blob-hex-3" type="text" maxlength="6" spellcheck="false" value="b0ecd8" />
+          </label>
+          <label class="background-debug-hex-field">
+            <span>Yellow</span>
+            <input id="background-blob-hex-4" type="text" maxlength="6" spellcheck="false" value="fff2a8" />
+          </label>
+        </div>
+
+        <div class="background-debug-title">Fluid look</div>
+        <label class="background-debug-hex-field background-debug-base-hex">
+          <span>Base color</span>
+          <input id="background-fluid-base-hex" type="text" maxlength="6" spellcheck="false" value="fffbf2" />
+        </label>
+        <label class="background-debug-toggle-row">
+          <span>Blob blend</span>
+          <select id="background-fluid-blend-mode">
+            <option value="normal" selected>Normal</option>
+            <option value="screen">Screen (glow)</option>
+          </select>
+        </label>
+
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Blob strength</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-blob-opacity">0.58</span>
+          </div>
+          <input id="background-slider-fluid-blob-opacity" type="range" min="0" max="1" step="0.01" value="0.58" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Brightness</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-brightness">1</span>
+          </div>
+          <input id="background-slider-fluid-brightness" type="range" min="0.6" max="1.4" step="0.01" value="1" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Saturation</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-saturation">1</span>
+          </div>
+          <input id="background-slider-fluid-saturation" type="range" min="0" max="1.5" step="0.01" value="1" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Base wash</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-white-mix">0</span>
+          </div>
+          <input id="background-slider-fluid-white-mix" type="range" min="0" max="0.6" step="0.01" value="0" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Sheen</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-sheen">0</span>
+          </div>
+          <input id="background-slider-fluid-sheen" type="range" min="0" max="1" step="0.01" value="0" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Plane opacity</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-mesh-opacity">1</span>
+          </div>
+          <input id="background-slider-fluid-mesh-opacity" type="range" min="0" max="1" step="0.01" value="1" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Blob falloff</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-gradient-mid">0.55</span>
+          </div>
+          <input id="background-slider-fluid-gradient-mid" type="range" min="0.25" max="0.75" step="0.01" value="0.55" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Edge softness</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-gradient-mid-alpha">0.45</span>
+          </div>
+          <input id="background-slider-fluid-gradient-mid-alpha" type="range" min="0" max="1" step="0.01" value="0.45" />
+        </div>
+
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Fluid blur</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-blur">24</span>
+          </div>
+          <input id="background-slider-fluid-blur" type="range" min="0" max="120" step="1" value="24" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Blur cap</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-blur-cap">56</span>
+          </div>
+          <input id="background-slider-fluid-blur-cap" type="range" min="0" max="120" step="1" value="56" />
+        </div>
+
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Fluid drift</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-drift">0</span>
+          </div>
+          <input id="background-slider-fluid-drift" type="range" min="0" max="0.05" step="0.001" value="0" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Drift amount</span>
+            <span class="background-debug-value" data-value-for="background-slider-fluid-drift-amplitude">0.018</span>
+          </div>
+          <input id="background-slider-fluid-drift-amplitude" type="range" min="0" max="0.06" step="0.001" value="0.018" />
+        </div>
+
+        <label class="background-debug-toggle-row">
+          <input id="background-toggle-circles" type="checkbox" checked />
+          <span>Circle pattern</span>
+        </label>
+        <label class="background-debug-toggle-row">
+          <input id="background-toggle-linear" type="checkbox" checked />
+          <span>Smooth sampling (linear)</span>
+        </label>
+
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Circle opacity</span>
+            <span class="background-debug-value" data-value-for="background-slider-circle-opacity">0.42</span>
+          </div>
+          <input id="background-slider-circle-opacity" type="range" min="0" max="1" step="0.01" value="0.42" />
+        </div>
+
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Circle size (radius px)</span>
+            <span class="background-debug-value" data-value-for="background-slider-radius">28</span>
+          </div>
+          <input id="background-slider-radius" type="range" min="4" max="80" step="1" value="28" />
+        </div>
+
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Spacing (gap px)</span>
+            <span class="background-debug-value" data-value-for="background-slider-gap">40</span>
+          </div>
+          <input id="background-slider-gap" type="range" min="0" max="64" step="1" value="40" />
+        </div>
+
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Texture repeat</span>
+            <span class="background-debug-value" data-value-for="background-slider-repeat">10</span>
+          </div>
+          <input id="background-slider-repeat" type="range" min="2" max="24" step="1" value="10" />
+        </div>
+
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Scroll speed</span>
+            <span class="background-debug-value" data-value-for="background-slider-scroll">0.08</span>
+          </div>
+          <input id="background-slider-scroll" type="range" min="0" max="0.35" step="0.01" value="0.08" />
+        </div>
+
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Circle plane size</span>
+            <span class="background-debug-value" data-value-for="background-slider-plane">36</span>
+          </div>
+          <input id="background-slider-plane" type="range" min="0.1" max="80" step="0.1" value="36" />
+        </div>
+
+        <div class="background-debug-title">Restart button</div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Button height (px)</span>
+            <span class="background-debug-value" data-value-for="background-slider-restart-height">46</span>
+          </div>
+          <input id="background-slider-restart-height" type="range" min="34" max="60" step="1" value="46" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Arrow size (px)</span>
+            <span class="background-debug-value" data-value-for="background-slider-restart-icon">24</span>
+          </div>
+          <input id="background-slider-restart-icon" type="range" min="14" max="36" step="1" value="24" />
+        </div>
+        <div class="background-debug-group">
+          <div class="background-debug-group-head">
+            <span>Vertical offset (px)</span>
+            <span class="background-debug-value" data-value-for="background-slider-restart-offset-y">0</span>
+          </div>
+          <input id="background-slider-restart-offset-y" type="range" min="-12" max="12" step="1" value="0" />
+        </div>
+
+        <button id="background-debug-reset" class="tool-btn background-debug-reset" type="button">Reset defaults</button>
       </div>
     </div>
 
@@ -288,6 +519,6 @@
       </div>
     </div>
 
-    <script type="module" src="./src/main.js?v=47-light-debug"></script>
+    <script type="module" src="./src/main.js?v=48-background-debug"></script>
   </body>
 </html>

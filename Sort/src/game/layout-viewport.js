@@ -80,7 +80,17 @@ export function createLayoutViewportController({
   }
 
   function applyHudDebugTuning(values) {
-    document.documentElement.style.setProperty("--hud-level-offset-x", `${values.hudLevelOffsetX}px`);
+    const rootStyle = document.documentElement.style;
+    rootStyle.setProperty("--hud-level-offset-x", `${values.hudLevelOffsetX}px`);
+    if (values.restartBtnHeightPx != null) {
+      rootStyle.setProperty("--gameplay-restart-height", `${values.restartBtnHeightPx}px`);
+    }
+    if (values.restartIconSizePx != null) {
+      rootStyle.setProperty("--gameplay-restart-icon-size", `${values.restartIconSizePx}px`);
+    }
+    if (values.restartOffsetYPx != null) {
+      rootStyle.setProperty("--gameplay-restart-offset-y", `${values.restartOffsetYPx}px`);
+    }
   }
 
   function setGameHudVisible(visible) {
@@ -90,7 +100,7 @@ export function createLayoutViewportController({
     elements.gameplayTopbarEl?.classList.remove("is-floating-over-result");
     elements.gameplayCoinStatusEl?.classList.toggle("hidden", hidden);
     elements.gameplayCoinStatusEl?.classList.toggle("is-hidden-in-gameplay", visible);
-    elements.gameplaySettingsRootEl?.classList.add("hidden");
+    elements.gameplaySettingsRootEl?.classList.toggle("hidden", hidden);
     elements.gameplaySettingsMaskEl?.classList.toggle("hidden", true);
     elements.gameplayExitMaskEl?.classList.toggle("hidden", true);
     elements.gameplayExitModalEl?.classList.toggle("hidden", true);

@@ -8,6 +8,8 @@ function smoothstep(t) {
 export function createVictoryPresentation({
   phoneFrameEl,
   bgFrom = 0xfffbf2,
+  setPlayfieldVictoryTint,
+  clearPlayfieldVictoryTint,
   getTuning,
   getPaletteTarget,
 } = {}) {
@@ -50,6 +52,7 @@ export function createVictoryPresentation({
     const t = smoothstep(elapsed / motionDuration);
     workColor.copy(fromColor).lerp(toColor, t);
     scene.background = workColor;
+    setPlayfieldVictoryTint?.(workColor);
   }
 
   function stop() {
@@ -61,8 +64,9 @@ export function createVictoryPresentation({
     elapsed = 0;
     phoneFrameEl?.classList.remove("is-victory-presentation");
 
-    if (scene) {
-      scene.background = fromColor.clone();
+    clearPlayfieldVictoryTint?.();
+    if (scene?.background?.isColor && !clearPlayfieldVictoryTint) {
+      scene.background.copy(fromColor);
     }
   }
 

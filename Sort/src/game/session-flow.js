@@ -193,7 +193,9 @@ export function createSessionFlowController({
     if (!state.started) return;
     onHideOutOfMovesBanner?.();
     gameUI.closeSimpleLevelWin();
+    gameUI.closeResult();
     state.gameOver = false;
+    state.defeatPopActive = false;
     state.outOfMovesHandling = false;
     state.levelTransitioning = false;
     state.pointerDown = false;
@@ -248,7 +250,7 @@ export function createSessionFlowController({
   function openLevelLoseModal() {
     gameAudio?.playGameLoseAudio?.();
     gameUI.openSimpleLevelWin({
-      title: `第 ${state.currentLevelIndex + 1} 关失败`,
+      title: `第${state.currentLevelIndex + 1}关失败`,
       desc: "步数用完了",
       actionText: "重新开始",
       variant: "lose",

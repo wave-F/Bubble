@@ -16,10 +16,17 @@ export function createBubbleSpawnSystem({
   let active = false;
   let trackedFruits = [];
 
-  function start(fruits, layout) {
+  function start(fruits, layout, options = {}) {
     trackedFruits = Array.isArray(fruits) ? fruits : [];
     if (!trackedFruits.length || !layout) {
       active = false;
+      onComplete?.();
+      return;
+    }
+
+    if (options.instant) {
+      active = false;
+      trackedFruits = [];
       onComplete?.();
       return;
     }

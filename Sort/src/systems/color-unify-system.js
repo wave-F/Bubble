@@ -2,12 +2,14 @@ import {
   DIRECTION_DELTA,
   NEIGHBOR_DIRS,
 } from "./mechanism-dye-logic.js";
+import { playArrowRayCellWave } from "./pop-wave-system.js";
 
 const MECHANISM_DYE_STEP_MS = 90;
 
 export function createColorUnifySystem() {
   const pendingDyes = [];
   const spreadVisited = new Set();
+  let isProjectileActive = () => false;
 
   function isActiveFruit(fruit) {
     return Boolean(fruit?.active && !fruit.sliced);
@@ -65,15 +67,15 @@ export function createColorUnifySystem() {
     pendingDyes.splice(insertAt, 0, job);
   }
 
-  function applyDyeNow(fruit, colorId, colorDef) {
+  function applyDyeNow(fruit, colorId, colorDef, { visualPulse = true } = {}) {
     if (!isActiveFruit(fruit)) return false;
     if (fruit.colorId === colorId) return false;
     fruit.setColorId(colorId, colorDef.base);
-    fruit.playDyePulse?.();
+    if (visualPulse) fruit.playDyePulse?.();
     return true;
   }
 
-  function scheduleDye(fruit, colorId, colorDef, delayMs, onApplied) {
+  function scheduleDye(fruit, colorId, colorDef, delayMs, onApplied, { visualPulse = true } = {}) {
     if (!isActiveFruit(fruit)) return;
     insertPendingDye({
       deadline: performance.now() + Math.max(0, delayMs),
@@ -81,6 +83,7 @@ export function createColorUnifySystem() {
       colorId,
       colorDef,
       onApplied,
+      visualPulse,
     });
   }
 
@@ -111,6 +114,8 @@ export function createColorUnifySystem() {
       const fruit = findFruitAt(fruits, col, row);
       if (fruit) {
         const delayMs = baseDelayMs + step * MECHANISM_DYE_STEP_MS;
+        const delaySec = delayMs / 1000;
+        playArrowRayCellWave(fruit, { delaySec });
         const triggerChain = Boolean(fruit.mechanismDirection);
         scheduleDye(
           fruit,
@@ -127,6 +132,7 @@ export function createColorUnifySystem() {
               baseDelayMs: 0,
             })
             : null,
+          { visualPulse: false },
         );
       }
       step += 1;
@@ -141,18 +147,32 @@ export function createColorUnifySystem() {
     colorDef,
     row,
     col,
-    mechanismQueue,
   }) {
     const fruit = findFruitAt(fruits, col, row);
     if (!fruit) return;
 
-    const changed = applyDyeNow(fruit, colorId, colorDef);
-    if (changed && fruit.mechanismDirection) {
-      mechanismQueue.push(fruit);
-    }
+    applyDyeNow(fruit, colorId, colorDef);
   }
 
-  function applyPop({ source, fruits, colors }) {
+  function markMechanismRayEmitted(mechanism) {
+    if (!mechanism?.mechanismDirection || !isActiveFruit(mechanism)) return false;
+    const key = `${mechanism.gridCol},${mechanism.gridRow}`;
+    if (spreadVisited.has(key)) return false;
+    spreadVisited.add(key);
+    return true;
+  }
+
+  function pierceRayTarget(fruit, { colorId, colorDef }) {
+    const changed = applyDyeNow(fruit, colorId, colorDef, { visualPulse: false });
+    if (!changed) return { chain: null, changed: false };
+    let chain = null;
+    if (fruit.mechanismDirection && markMechanismRayEmitted(fruit)) {
+      chain = fruit;
+    }
+    return { chain, changed: true };
+  }
+
+  function applyPop({ source, fruits, colors, rayDelivery = "instant" }) {
     if (!isActiveFruit(source)) return;
 
     const colorId = source.colorId;
@@ -160,9 +180,8 @@ export function createColorUnifySystem() {
     if (!colorDef) return;
 
     spreadVisited.clear();
-    const mechanismQueue = [];
 
-    if (source.mechanismDirection) {
+    if (source.mechanismDirection && rayDelivery !== "projectile") {
       scheduleRayFromMechanism({
         mechanism: source,
         fruits,
@@ -180,18 +199,6 @@ export function createColorUnifySystem() {
         colorDef,
         row: source.gridRow + dr,
         col: source.gridCol + dc,
-        mechanismQueue,
-      });
-    }
-
-    for (const mechanism of mechanismQueue) {
-      scheduleRayFromMechanism({
-        mechanism,
-        fruits,
-        colors,
-        colorId,
-        colorDef,
-        baseDelayMs: 0,
       });
     }
   }
@@ -201,8 +208,10 @@ export function createColorUnifySystem() {
 
     while (pendingDyes.length > 0 && pendingDyes[0].deadline <= now) {
       const job = pendingDyes.shift();
-      const { fruit, colorId, colorDef, onApplied } = job;
-      const changed = applyDyeNow(fruit, colorId, colorDef);
+      const { fruit, colorId, colorDef, onApplied, visualPulse } = job;
+      const changed = applyDyeNow(fruit, colorId, colorDef, {
+        visualPulse: visualPulse !== false,
+      });
       if (changed && typeof onApplied === "function") {
         onApplied();
       }
@@ -218,8 +227,16 @@ export function createColorUnifySystem() {
     return pendingDyes.length > 0;
   }
 
+  function setProjectileActiveChecker(fn) {
+    isProjectileActive = typeof fn === "function" ? fn : () => false;
+  }
+
+  function hasPendingWork() {
+    return hasPendingDyes() || isProjectileActive();
+  }
+
   function isBoardUnified(fruits) {
-    if (hasPendingDyes()) return false;
+    if (hasPendingWork()) return false;
 
     let targetColorId = null;
     let activeCount = 0;
@@ -239,9 +256,13 @@ export function createColorUnifySystem() {
 
   return {
     applyPop,
+    pierceRayTarget,
+    markMechanismRayEmitted,
     update,
     clear,
     hasPendingDyes,
+    hasPendingWork,
+    setProjectileActiveChecker,
     isBoardUnified,
     findGridNeighborFruits,
   };

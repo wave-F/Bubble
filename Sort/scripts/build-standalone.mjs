@@ -83,27 +83,25 @@ const html = `<!doctype html>
       <div id="coin-fly-layer" class="hidden" aria-hidden="true"></div>
 
       <div id="hud" aria-label="关卡状态">
-        <div class="home-status gameplay-hud-item" aria-label="剩余步数">
-          <span id="score" class="home-status-value">MOVE:0</span>
+        <div class="hud-meta-row hud-meta-row--spread">
+          <div class="hud-meta-left">
+            <div class="home-status gameplay-hud-item" aria-label="剩余步数">
+              <span id="score" class="home-status-value">MOVE:0</span>
+            </div>
+            <div class="home-status gameplay-hud-item" aria-label="当前关卡">
+              <span id="hud-level" class="home-status-value">LV:1</span>
+            </div>
+          </div>
+          <button id="gameplay-restart-btn" type="button" class="home-status gameplay-hud-item gameplay-restart-btn" aria-label="Restart level">
+            <img
+              class="gameplay-restart-icon"
+              src="./assets/images/iconShade_Restart.png"
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+            />
+          </button>
         </div>
-        <div class="home-status gameplay-hud-item" aria-label="当前关卡">
-          <span id="hud-level" class="home-status-value">LV:1</span>
-        </div>
-      </div>
-
-      <div id="gameplay-settings-mask" class="hidden" aria-hidden="true"></div>
-
-      <div id="gameplay-settings" class="hidden" aria-label="In-game settings">
-        <button id="gameplay-settings-toggle" class="home-mini-btn gp-settings-btn gp-main-btn" type="button" aria-label="Open in-game settings">⚙️</button>
-        <button id="gameplay-settings-music" class="gp-settings-btn gp-settings-item" type="button" aria-label="Music">
-          <span class="gp-settings-icon" aria-hidden="true">🎵</span>
-        </button>
-        <button id="gameplay-settings-sfx" class="gp-settings-btn gp-settings-item" type="button" aria-label="SFX">
-          <span class="gp-settings-icon" aria-hidden="true">🔊</span>
-        </button>
-        <button id="gameplay-settings-exit" class="gp-settings-btn gp-settings-item gp-exit-btn" type="button" aria-label="Exit">
-          <span class="gp-settings-icon" aria-hidden="true">↩</span>
-        </button>
       </div>
 
       <div id="gameplay-exit-mask" class="hidden" aria-hidden="true"></div>
@@ -210,9 +208,11 @@ const html = `<!doctype html>
       </div>
 
       <div id="level-win" class="layer hidden">
-        <h2 id="level-win-title">关卡胜利！</h2>
-        <p id="level-win-desc">泡泡雨已放送，准备下一关。</p>
-        <button id="level-win-next-btn">下一关</button>
+        <div class="level-win-stack">
+          <h2 id="level-win-title">关卡胜利！</h2>
+          <p id="level-win-desc">泡泡雨已放送，准备下一关。</p>
+          <button id="level-win-next-btn">下一关</button>
+        </div>
       </div>
 
       <div id="game-over" class="layer hidden">

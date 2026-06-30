@@ -183,7 +183,21 @@
         color: #1d5fbf;
       }
 
+      .mechanism-help {
+        margin: 6px 0 8px;
+        font-size: 11px;
+        color: #5f7388;
+        line-height: 1.35;
+      }
+
+      #preview-arrow-flight.active {
+        background: #e8f3ff;
+        border-color: #9ec7ff;
+        color: #1d5fbf;
+      }
+
       #pop-btn,
+      #preview-arrow-flight,
       #reset-btn,
       #sync-btn,
       #back-btn {
@@ -369,6 +383,16 @@
         <button type="button" data-mechanism-direction="down" title="向下">↓</button>
         <button type="button" data-mechanism-direction="left" title="向左">←</button>
       </div>
+      <p class="mechanism-help" data-i18n="bubble.help.arrowFlight">飞行预览：场景箭头在泡泡下方穿过，便于检查描边。</p>
+      <div class="ctrl-row">
+        <label for="p-arrow-outline-scale" data-i18n="bubble.ctrl.arrowOutlineScale">箭头描边放大<input id="p-arrow-outline-scale" type="range" min="1.02" max="1.15" step="0.005" value="1.08" /></label>
+        <span class="ctrl-value" data-value-for="p-arrow-outline-scale">1.080</span>
+      </div>
+      <div class="ctrl-row">
+        <label for="p-arrow-outline-z" data-i18n="bubble.ctrl.arrowOutlineZ">箭头描边 Z<input id="p-arrow-outline-z" type="range" min="-0.04" max="0" step="0.001" value="-0.012" /></label>
+        <span class="ctrl-value" data-value-for="p-arrow-outline-z">-0.012</span>
+      </div>
+      <button id="preview-arrow-flight" type="button" data-i18n="bubble.btn.previewArrowFlight">预览飞行箭头</button>
 
       <button id="pop-btn" type="button" data-i18n="bubble.btn.pop">播放爆炸动画</button>
       <button id="reset-btn" type="button" data-i18n="bubble.btn.reset">恢复默认参数</button>
@@ -376,6 +400,6 @@
       <button id="back-btn" type="button" data-i18n="bubble.btn.back">返回主游戏</button>
     </div>
 
-    <script type="module" src="/src/bubble-debug.js?v=20260629-3d-arrow"></script>
+    <script type="module" src="/src/bubble-debug.js?v=20260630-arrow-flight"></script>
   </body>
 </html>

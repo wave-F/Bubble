@@ -555,7 +555,8 @@
   color: var(--win-title-color, #2c5f8f);
 }
 
-#level-win.is-win h2 {
+#level-win.is-win h2,
+#level-win.is-win #level-win-title {
   color: var(--win-title-color, #2c5f8f);
 }
 
@@ -564,7 +565,21 @@
   box-shadow: 0 12px 22px color-mix(in srgb, var(--win-btn-from, #3d89d6) 35%, transparent);
 }
 
+#level-win.is-lose #level-win-title {
+  color: inherit;
+}
+
 #level-win.is-lose {
   background: rgba(255, 236, 236, 0.92);
   color: #8f3d3d;
+}
+
+/* Fail overlay only: darker red pill for 重新开始 */
+#level-win.is-lose #level-win-next-btn {
+  min-width: clamp(148px, 42vw, 200px);
+  padding-inline: calc(var(--sp-6) + var(--sp-2));
+  background: linear-gradient(180deg, #c93d3d, #8f1f1f);
+  box-shadow: 0 8px 0 #5c1414, 0 12px 22px rgba(70, 12, 12, 0.38);
+  color: #fff5f5;
+  text-shadow: 0 1px 0 rgba(60, 8, 8, 0.45);
 }

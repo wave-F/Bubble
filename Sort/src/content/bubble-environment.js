@@ -39,6 +39,7 @@ export function syncBubbleMaterialsEnvironment(scene, envMap, envMapIntensity = 
 
   scene.traverse((object) => {
     if (!object?.isMesh) return;
+    if (object.userData?.skipBubbleEnvironment) return;
     const materials = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of materials) {
       if (!material) continue;

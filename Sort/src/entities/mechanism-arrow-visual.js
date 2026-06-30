@@ -2,6 +2,14 @@ import * as THREE from "three/webgpu";
 
 export const MECHANISM_ARROW_DIRECTIONS = ["up", "right", "down", "left"];
 
+export const ARROW_MS_PER_CELL = 90;
+export const ARROW_TRAVEL_Z = -0.12;
+export const ARROW_RENDER_ORDER = 0;
+export const GRID_BUBBLE_RENDER_ORDER = 2;
+
+const DEFAULT_OUTLINE_SCALE = 1.08;
+const DEFAULT_OUTLINE_Z = -0.012;
+
 const EXTRUDE_OPTIONS = {
   depth: 0.16,
   bevelEnabled: true,
@@ -9,6 +17,20 @@ const EXTRUDE_OPTIONS = {
   bevelSize: 0.018,
   bevelSegments: 2,
 };
+
+export function prepareProjectileArrowDraw(group) {
+  group.renderOrder = ARROW_RENDER_ORDER;
+  group.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.renderOrder = ARROW_RENDER_ORDER;
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const material of materials) {
+      if (!material) continue;
+      material.depthTest = true;
+      material.depthWrite = true;
+    }
+  });
+}
 
 function orientPoint(x, y, direction) {
   switch (direction) {
@@ -69,7 +91,14 @@ function createArrowGeometry(direction) {
   return geometry;
 }
 
-export function createMechanismArrow(direction, bubbleBaseRadius = 1.2) {
+export function createMechanismArrow(
+  direction,
+  bubbleBaseRadius = 1.2,
+  {
+    outlineScale = DEFAULT_OUTLINE_SCALE,
+    outlineZ = DEFAULT_OUTLINE_Z,
+  } = {},
+) {
   const group = new THREE.Group();
   const outlineGeometry = createArrowGeometry(direction);
   const arrowGeometry = createArrowGeometry(direction);
@@ -78,8 +107,9 @@ export function createMechanismArrow(direction, bubbleBaseRadius = 1.2) {
     outlineGeometry,
     createSolidMaterial(0x1a3048, 0.4)
   );
-  outline.scale.set(1.08, 1.08, 1.04);
-  outline.position.z = -0.012;
+  const outlineDepthScale = 1 + (outlineScale - 1) * 0.5;
+  outline.scale.set(outlineScale, outlineScale, outlineDepthScale);
+  outline.position.z = outlineZ;
 
   const arrow = new THREE.Mesh(
     arrowGeometry,
@@ -90,3 +120,8 @@ export function createMechanismArrow(direction, bubbleBaseRadius = 1.2) {
   group.scale.setScalar(bubbleBaseRadius * 1.08);
   return group;
 }
+
+export const mechanismArrowOutlineDefaults = {
+  outlineScale: DEFAULT_OUTLINE_SCALE,
+  outlineZ: DEFAULT_OUTLINE_Z,
+};

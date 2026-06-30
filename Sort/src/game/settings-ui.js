@@ -85,45 +85,60 @@ export function createSettingsUiController({
   }
 
   function bindGameplaySettingsMenu() {
-    if (!elements.gameplaySettingsRootEl || !elements.gameplaySettingsToggleEl) return;
-
-    syncGameplaySettingsButtons();
-    elements.gameplaySettingsToggleEl.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      gameAudio.playUiClickAudio();
-      const isOpen = elements.gameplaySettingsRootEl.classList.contains("open");
-      setGameplaySettingsMenuOpen(!isOpen);
-    });
-
-    elements.gameplaySettingsMusicEl?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      gameAudio.playUiClickAudio();
-      gameSettings.musicEnabled = !gameSettings.musicEnabled;
-      saveGameSettings();
-      applyGameSettings();
-      syncSettingsUi();
+    if (elements.gameplaySettingsRootEl && elements.gameplaySettingsToggleEl) {
       syncGameplaySettingsButtons();
-    });
+      elements.gameplaySettingsToggleEl.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        gameAudio.playUiClickAudio();
+        const isOpen = elements.gameplaySettingsRootEl.classList.contains("open");
+        setGameplaySettingsMenuOpen(!isOpen);
+      });
 
-    elements.gameplaySettingsSfxEl?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      gameAudio.playUiClickAudio();
-      gameSettings.sfxEnabled = !gameSettings.sfxEnabled;
-      saveGameSettings();
-      applyGameSettings();
-      syncSettingsUi();
-      syncGameplaySettingsButtons();
-    });
+      elements.gameplaySettingsMusicEl?.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        gameAudio.playUiClickAudio();
+        gameSettings.musicEnabled = !gameSettings.musicEnabled;
+        saveGameSettings();
+        applyGameSettings();
+        syncSettingsUi();
+        syncGameplaySettingsButtons();
+      });
 
-    elements.gameplaySettingsExitEl?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      gameAudio.playUiClickAudio();
-      showGameplayExitModal();
-    });
+      elements.gameplaySettingsSfxEl?.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        gameAudio.playUiClickAudio();
+        gameSettings.sfxEnabled = !gameSettings.sfxEnabled;
+        saveGameSettings();
+        applyGameSettings();
+        syncSettingsUi();
+        syncGameplaySettingsButtons();
+      });
 
-    elements.gameplaySettingsMaskEl?.addEventListener("click", () => {
-      hideGameplaySettingsMenu();
-    });
+      elements.gameplaySettingsExitEl?.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        gameAudio.playUiClickAudio();
+        showGameplayExitModal();
+      });
+
+      elements.gameplaySettingsMaskEl?.addEventListener("click", () => {
+        hideGameplaySettingsMenu();
+      });
+
+      window.addEventListener("pointerdown", (ev) => {
+        if (!elements.gameplaySettingsRootEl.classList.contains("open")) return;
+        const target = ev.target;
+        if (
+          target instanceof Node &&
+          (elements.gameplaySettingsRootEl.contains(target) ||
+            elements.gameplaySettingsMaskEl?.contains(target))
+        ) {
+          return;
+        }
+        hideGameplaySettingsMenu();
+      });
+    }
+
+    if (!elements.gameplayExitModalEl) return;
 
     elements.gameplayExitMaskEl?.addEventListener("click", () => {
       hideGameplayExitModal();
@@ -143,13 +158,6 @@ export function createSettingsUiController({
       gameAudio.playUiClickAudio();
       hideGameplayExitModal();
       onExitGameplayToHome?.();
-    });
-
-    window.addEventListener("pointerdown", (ev) => {
-      if (!elements.gameplaySettingsRootEl.classList.contains("open")) return;
-      const target = ev.target;
-      if (target instanceof Node && (elements.gameplaySettingsRootEl.contains(target) || elements.gameplaySettingsMaskEl?.contains(target))) return;
-      hideGameplaySettingsMenu();
     });
   }
 

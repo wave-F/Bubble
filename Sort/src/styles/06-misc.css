@@ -40,13 +40,29 @@
   white-space: nowrap;
 }
 
-#level-win h2 {
+.level-win-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+#level-win h2,
+#level-win-title {
   margin: 0;
-  max-width: 88%;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  text-align: center;
+  white-space: nowrap;
   font-size: clamp(34px, 8.8vw, 52px);
   font-weight: 900;
   line-height: 1.15;
-  letter-spacing: 0.06em;
+  letter-spacing: normal;
   text-shadow: 0 6px 16px rgba(92, 178, 255, 0.35);
 }
 
@@ -59,6 +75,7 @@
 
 #level-win-next-btn {
   margin-top: 22px;
+  align-self: center;
 }
 
 #pause-overlay {

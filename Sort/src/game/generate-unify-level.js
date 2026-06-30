@@ -10,6 +10,7 @@ import {
   boardColorCounts,
   boardUsesOnlyColors,
 } from "./unify-inverse-pop.js";
+import { pickArrowCount, placeRandomMechanisms } from "./place-random-mechanisms.js";
 import { stepLimitForGeneratedLevel } from "./reference-step-margins.js";
 
 const COLOR_POOL = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -36,6 +37,8 @@ const MAX_ATTEMPTS_BY_SIZE = { 3: 8000, 4: 20000 };
 const GENERATION_BUDGET_MS = { 3: 3000, 4: 6000, 5: 15000 };
 
 const MAX_OUTER_ATTEMPTS_5 = 120;
+const MAX_OUTER_ATTEMPTS_5_WITH_ARROWS = 180;
+const DEFAULT_ARROW_PLACEMENT_ATTEMPTS = 24;
 
 const YIELD_EVERY = 64;
 
@@ -163,6 +166,7 @@ function buildLevelFromCandidate({
   cells,
   seed,
   steps,
+  mechanisms = [],
 }) {
   return {
     id: levelId,
@@ -178,7 +182,7 @@ function buildLevelFromCandidate({
     colorIds,
     colorCounts: boardColorCounts(cells).map(({ colorId, count }) => ({ colorId, count })),
     cells,
-    mechanisms: [],
+    mechanisms,
     stepLimit: gridSize === 5
       ? Math.min(
         MAX_STEP_LIMIT_5,
@@ -210,6 +214,47 @@ async function certifyLevel(probe, solveMaxDepth, gridSize) {
   return solveLevel(probe, solveMaxDepth, { deadline });
 }
 
+async function tryCertifyBoard({
+  board,
+  gridSize,
+  layout,
+  solveMaxDepth,
+  minOptimal,
+  maxOptimal,
+  includeArrowBubbles,
+  arrowPlacementAttemptsPerLayout,
+  placementSeed,
+}) {
+  const minSteps = Math.max(1, Math.floor(minOptimal ?? 1));
+
+  if (!includeArrowBubbles) {
+    const probe = { gridSize, cells: board, mechanisms: [], ...layout };
+    const result = await certifyLevel(probe, solveMaxDepth, gridSize);
+    if (result.timedOut || result.steps < minSteps || result.steps > maxOptimal) return null;
+    return { steps: result.steps, mechanisms: [] };
+  }
+
+  const attempts = Math.max(
+    1,
+    Math.floor(arrowPlacementAttemptsPerLayout ?? DEFAULT_ARROW_PLACEMENT_ATTEMPTS),
+  );
+  const base = Math.floor(placementSeed) >>> 0;
+
+  for (let inner = 0; inner < attempts; inner += 1) {
+    const rng = createSeededRandom(base + inner * 131);
+    const arrowCount = pickArrowCount(rng);
+    const mechanisms = placeRandomMechanisms(board, gridSize, arrowCount, rng);
+    if (!mechanisms) continue;
+
+    const probe = { gridSize, cells: board, mechanisms, ...layout };
+    const result = await certifyLevel(probe, solveMaxDepth, gridSize);
+    if (result.timedOut || result.steps < minSteps || result.steps > maxOptimal) continue;
+    return { steps: result.steps, mechanisms };
+  }
+
+  return null;
+}
+
 async function generateUnifyLevel5x5({
   levelId,
   namePrefix,
@@ -220,13 +265,18 @@ async function generateUnifyLevel5x5({
   generationDeadline,
   baseSeed,
   onProgress,
+  includeArrowBubbles = false,
+  arrowPlacementAttemptsPerLayout,
 }) {
   const gridSize = 5;
   const cellCount = gridSize * gridSize;
   const solveMaxDepth = 32;
   let best = null;
+  const maxOuterAttempts = includeArrowBubbles
+    ? MAX_OUTER_ATTEMPTS_5_WITH_ARROWS
+    : MAX_OUTER_ATTEMPTS_5;
 
-  for (let attempt = 0; attempt < MAX_OUTER_ATTEMPTS_5; attempt += 1) {
+  for (let attempt = 0; attempt < maxOuterAttempts; attempt += 1) {
     if (Date.now() > generationDeadline) break;
     await Promise.resolve();
 
@@ -266,19 +316,21 @@ async function generateUnifyLevel5x5({
 
     onProgress?.({ phase: "certify" });
 
-    const probe = {
+    const certified = await tryCertifyBoard({
+      board,
       gridSize,
-      cells: board,
-      mechanisms: [],
-      ...layout,
-    };
-
-    const result = await certifyLevel(probe, solveMaxDepth, gridSize);
-    if (result.timedOut || result.steps < minOptimal) continue;
-    if (result.steps > maxOptimal) continue;
+      layout,
+      solveMaxDepth,
+      minOptimal,
+      maxOptimal,
+      includeArrowBubbles,
+      arrowPlacementAttemptsPerLayout,
+      placementSeed: seed,
+    });
+    if (!certified) continue;
 
     const candidate = {
-      optimalSteps: result.steps,
+      optimalSteps: certified.steps,
       level: buildLevelFromCandidate({
         levelId,
         namePrefix,
@@ -289,7 +341,8 @@ async function generateUnifyLevel5x5({
         colorIds,
         cells: board,
         seed,
-        steps: result.steps,
+        steps: certified.steps,
+        mechanisms: certified.mechanisms,
       }),
     };
 
@@ -303,7 +356,8 @@ async function generateUnifyLevel5x5({
 }
 
 /**
- * Propose a unify-win level with stepLimit = optimal + margin (no mechanisms).
+ * Propose a unify-win level with stepLimit = optimal + margin.
+ * Optional `includeArrowBubbles`: certify with 1–3 random arrow mechanisms.
  * @returns {Promise<{ level: object, optimalSteps: number } | null>}
  */
 export async function generateUnifyLevel({
@@ -313,6 +367,8 @@ export async function generateUnifyLevel({
   baseSeed = Date.now(),
   namePrefix = "染色",
   onProgress,
+  includeArrowBubbles = false,
+  arrowPlacementAttemptsPerLayout,
 }) {
   const gridSize = Math.max(3, Math.min(5, Math.floor(rawGridSize ?? 3)));
   const difficulty = normalizeDifficulty(rawDifficulty);
@@ -339,6 +395,8 @@ export async function generateUnifyLevel({
       generationDeadline,
       baseSeed,
       onProgress,
+      includeArrowBubbles,
+      arrowPlacementAttemptsPerLayout,
     });
   }
 
@@ -357,21 +415,21 @@ export async function generateUnifyLevel({
     const colorCounts = buildEvenColorCounts(colorIds, cellCount);
     const cells = buildCellsFromCounts(colorCounts, seed);
 
-    const probe = {
+    const certified = await tryCertifyBoard({
+      board: cells,
       gridSize,
-      cells,
-      mechanisms: [],
-      ...layout,
-    };
-
-    const result = await certifyLevel(probe, solveMaxDepth, gridSize);
-    if (result.timedOut || result.steps < 1) continue;
-
-    const steps = result.steps;
-    if (steps > maxOptimal) continue;
+      layout,
+      solveMaxDepth,
+      minOptimal: 1,
+      maxOptimal,
+      includeArrowBubbles,
+      arrowPlacementAttemptsPerLayout,
+      placementSeed: seed,
+    });
+    if (!certified) continue;
 
     return {
-      optimalSteps: steps,
+      optimalSteps: certified.steps,
       level: buildLevelFromCandidate({
         levelId,
         namePrefix,
@@ -382,7 +440,8 @@ export async function generateUnifyLevel({
         colorIds,
         cells,
         seed,
-        steps,
+        steps: certified.steps,
+        mechanisms: certified.mechanisms,
       }),
     };
   }
