@@ -6,6 +6,7 @@ import {
   t,
 } from "./i18n/dev-locale.js";
 import { createLevelEditorPlaytest } from "./level-editor-playtest.js";
+import { generateUnifyLevel } from "./game/generate-unify-level.js";
 import {
   LARGE_GRID_TIME_BUDGET_MS,
   cancelSolverJobs,
@@ -36,7 +37,9 @@ const HEALTH_URL = "/api/health";
 
 const els = {
   levelTabs: document.getElementById("level-tabs"),
+  addLevelWrap: document.getElementById("add-level-wrap"),
   btnAddLevel: document.getElementById("btn-add-level"),
+  addLevelMenu: document.getElementById("add-level-menu"),
   levelName: document.getElementById("level-name"),
   levelId: document.getElementById("level-id"),
   stepLimit: document.getElementById("step-limit"),
@@ -56,6 +59,7 @@ const els = {
   btnLoadFile: document.getElementById("btn-load-file"),
   btnSave: document.getElementById("btn-save"),
   btnPlaytest: document.getElementById("btn-playtest"),
+  btnRerollGenerate: document.getElementById("btn-reroll-generate"),
   btnSolve: document.getElementById("btn-solve"),
   btnExport: document.getElementById("btn-export"),
   btnCopy: document.getElementById("btn-copy"),
@@ -75,6 +79,7 @@ const state = {
   saveApiAvailable: false,
   solutionCache: { key: "", result: null },
   solveRequestId: 0,
+  generatingLevel: false,
 };
 
 function createSeededRandom(seed) {
@@ -213,7 +218,11 @@ function createBlankLevel(id) {
   };
 }
 
-function addNewLevel() {
+function setAddLevelMenuOpen(open) {
+  els.addLevelMenu?.classList.toggle("hidden", !open);
+}
+
+function addNewLevelBlank() {
   persistCurrentLevel();
   invalidateSolutionCache();
 
@@ -223,6 +232,124 @@ function addNewLevel() {
   state.allLevels.sort((a, b) => a.id - b.id);
   state.editorMode = "color";
   switchToLevel(level);
+}
+
+function setGenerationUiBusy(busy) {
+  if (els.btnAddLevel) els.btnAddLevel.disabled = busy;
+  if (els.btnRerollGenerate) els.btnRerollGenerate.disabled = busy;
+  if (els.btnPlaytest) els.btnPlaytest.disabled = busy;
+  if (els.btnSolve) els.btnSolve.disabled = busy;
+}
+
+function applyGeneratedLevelToEditor(level, optimalSteps) {
+  state.editorMode = "color";
+  state.mechanisms = new Map();
+  switchToLevel(level);
+  updateStats(t("editor.generate.summary", {
+    optimal: optimalSteps,
+    limit: level.stepLimit,
+  }));
+}
+
+async function runLevelGeneration({ id, name, mode }) {
+  if (state.generatingLevel) return;
+
+  persistCurrentLevel();
+  invalidateSolutionCache();
+
+  const size = gridSize();
+  const difficulty = els.difficulty?.value ?? "easy";
+
+  state.generatingLevel = true;
+  setGenerationUiBusy(true);
+  updateStats(size >= 5 ? t("editor.generate.workingLarge") : t("editor.generate.working"));
+
+  try {
+    const result = await generateUnifyLevel({
+      id,
+      gridSize: size,
+      difficulty,
+      baseSeed: Date.now(),
+      onProgress: (payload) => {
+        if (!payload?.phase) return;
+        if (payload.phase === "layout") {
+          updateStats(t("editor.generate.step.layout", { count: payload.colorCount ?? 2 }));
+        } else if (payload.phase === "backward") {
+          updateStats(t("editor.generate.step.backward", {
+            current: payload.current ?? 0,
+            total: payload.total ?? 0,
+          }));
+        } else if (payload.phase === "certify") {
+          updateStats(t("editor.generate.step.certify"));
+        }
+      },
+    });
+
+    if (!result?.level) {
+      updateStats(size >= 5 ? t("editor.generate.failedLarge") : t("editor.generate.failed"));
+      return;
+    }
+
+    const { level: generated, optimalSteps } = result;
+    const level = {
+      ...generated,
+      id,
+      name: name?.trim() || generated.name,
+    };
+
+    if (mode === "new") {
+      state.allLevels.push(level);
+    } else {
+      const idx = state.allLevels.findIndex((item) => item.id === id);
+      if (idx >= 0) state.allLevels[idx] = level;
+      else state.allLevels.push(level);
+    }
+
+    state.allLevels.sort((a, b) => a.id - b.id);
+    applyGeneratedLevelToEditor(level, optimalSteps);
+  } finally {
+    state.generatingLevel = false;
+    setGenerationUiBusy(false);
+  }
+}
+
+async function addNewLevelGenerated() {
+  const id = nextLevelId();
+  await runLevelGeneration({ id, name: null, mode: "new" });
+}
+
+async function rerollCurrentLevel() {
+  const current = buildLevelJson();
+  await runLevelGeneration({
+    id: current.id,
+    name: current.name,
+    mode: "reroll",
+  });
+}
+
+function bindAddLevelMenu() {
+  els.btnAddLevel?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (state.generatingLevel) return;
+    const isOpen = !els.addLevelMenu?.classList.contains("hidden");
+    setAddLevelMenuOpen(!isOpen);
+  });
+
+  els.addLevelMenu?.addEventListener("click", (ev) => {
+    const mode = ev.target.closest("button")?.dataset?.addMode;
+    if (!mode) return;
+    ev.stopPropagation();
+    setAddLevelMenuOpen(false);
+    if (mode === "generate") {
+      void addNewLevelGenerated();
+    } else {
+      addNewLevelBlank();
+    }
+  });
+
+  document.addEventListener("click", () => {
+    setAddLevelMenuOpen(false);
+  });
 }
 
 function levelToEditor(level) {
@@ -611,7 +738,7 @@ async function loadLevelsFromUrl(url = DEFAULT_LEVELS_URL) {
 }
 
 function bindEvents() {
-  els.btnAddLevel?.addEventListener("click", addNewLevel);
+  bindAddLevelMenu();
 
   els.gridSize.addEventListener("change", () => {
     invalidateSolutionCache();
@@ -684,6 +811,9 @@ function bindEvents() {
 
   els.btnSave.addEventListener("click", saveLevelsToFile);
   els.btnPlaytest.addEventListener("click", () => playtest.open());
+  els.btnRerollGenerate?.addEventListener("click", () => {
+    void rerollCurrentLevel();
+  });
   els.btnSolve.addEventListener("click", calculateOptimalSteps);
   els.btnExport.addEventListener("click", exportPreview);
 

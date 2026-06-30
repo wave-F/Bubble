@@ -183,6 +183,181 @@ export function applyRandomInverseStep(board, size, rng = Math.random) {
   return pick.before;
 }
 
+function normalizeAllowedPalette(allowedColorIds) {
+  const list = Array.isArray(allowedColorIds) ? allowedColorIds : [];
+  return [...new Set(list.map((c) => Math.floor(c)).filter((c) => c >= 0 && c <= 7))];
+}
+
+function paletteAlts(after, popColor, allowedSet) {
+  const alts = [];
+  for (const c of activeColorIds(after)) {
+    if (c !== popColor && allowedSet.has(c)) alts.push(c);
+  }
+  for (const c of allowedSet) {
+    if (c !== popColor && !alts.includes(c)) alts.push(c);
+  }
+  return alts;
+}
+
+function pickRandomPreimagePalette(after, size, allowedColorIds, rng) {
+  const allowedSet = new Set(normalizeAllowedPalette(allowedColorIds));
+  if (!allowedSet.size) return null;
+
+  const holes = holeIndices(after);
+  if (!holes.length) return null;
+
+  for (const holeIdx of holes) {
+    const row = Math.floor(holeIdx / size);
+    const col = holeIdx % size;
+    const neighbors = neighborIndices(size, row, col);
+    const activeInPalette = activeColorIds(after).filter((c) => allowedSet.has(c));
+    const popCandidates = activeInPalette.length ? activeInPalette : [...allowedSet];
+
+    for (const popColor of popCandidates) {
+      let popValid = true;
+      for (const ni of neighbors) {
+        if (after[ni] >= 0 && after[ni] !== popColor) {
+          popValid = false;
+          break;
+        }
+      }
+      if (!popValid) continue;
+
+      const filled = after.slice();
+      filled[holeIdx] = popColor;
+      if (
+        forwardMatches(filled, after, size, row, col)
+        && boardUsesOnlyColors(filled, allowedColorIds)
+      ) {
+        return filled;
+      }
+    }
+  }
+
+  for (let trial = 0; trial < 48; trial += 1) {
+    const holeIdx = holes[Math.floor(rng() * holes.length)];
+    const row = Math.floor(holeIdx / size);
+    const col = holeIdx % size;
+    const neighbors = neighborIndices(size, row, col);
+
+    const activeInPalette = activeColorIds(after).filter((c) => allowedSet.has(c));
+    const popPool = activeInPalette.length ? activeInPalette : [...allowedSet];
+    const popColor = popPool[Math.floor(rng() * popPool.length)];
+
+    let valid = true;
+    for (const ni of neighbors) {
+      if (after[ni] >= 0 && after[ni] !== popColor) {
+        valid = false;
+        break;
+      }
+    }
+    if (!valid) continue;
+
+    const before = after.slice();
+    before[holeIdx] = popColor;
+    const alts = paletteAlts(after, popColor, allowedSet);
+
+    let neighborOk = true;
+    for (const ni of neighbors) {
+      if (after[ni] === EMPTY) {
+        before[ni] = EMPTY;
+        continue;
+      }
+      if (after[ni] !== popColor) {
+        neighborOk = false;
+        break;
+      }
+      if (rng() < 0.45 || !alts.length) {
+        before[ni] = popColor;
+      } else {
+        before[ni] = alts[Math.floor(rng() * alts.length)];
+      }
+    }
+    if (!neighborOk) continue;
+
+    if (forwardMatches(before, after, size, row, col) && boardUsesOnlyColors(before, allowedColorIds)) {
+      return before;
+    }
+  }
+
+  return null;
+}
+
+export function boardUsesOnlyColors(board, allowedColorIds) {
+  const allowedSet = new Set(normalizeAllowedPalette(allowedColorIds));
+  if (!allowedSet.size) return false;
+
+  for (const value of board) {
+    if (value >= 0 && !allowedSet.has(value)) return false;
+  }
+  return true;
+}
+
+export function trySimplePalettePreimage(after, size, allowedColorIds) {
+  const allowedSet = new Set(normalizeAllowedPalette(allowedColorIds));
+  if (!allowedSet.size) return null;
+
+  for (const holeIdx of holeIndices(after)) {
+    const row = Math.floor(holeIdx / size);
+    const col = holeIdx % size;
+    const neighbors = neighborIndices(size, row, col);
+    const activeInPalette = activeColorIds(after).filter((c) => allowedSet.has(c));
+    const popCandidates = activeInPalette.length ? activeInPalette : [...allowedSet];
+
+    for (const popColor of popCandidates) {
+      let popValid = true;
+      for (const ni of neighbors) {
+        if (after[ni] >= 0 && after[ni] !== popColor) {
+          popValid = false;
+          break;
+        }
+      }
+      if (!popValid) continue;
+
+      const filled = after.slice();
+      filled[holeIdx] = popColor;
+      if (
+        forwardMatches(filled, after, size, row, col)
+        && boardUsesOnlyColors(filled, allowedColorIds)
+      ) {
+        return filled;
+      }
+    }
+  }
+
+  return null;
+}
+
+export function applyRandomInverseStepPalette(board, size, allowedColorIds, rng = Math.random) {
+  const simple = trySimplePalettePreimage(board, size, allowedColorIds);
+  if (simple) return simple;
+
+  const fast = pickRandomPreimagePalette(board, size, allowedColorIds, rng);
+  if (fast) return fast;
+
+  const allowedSet = new Set(normalizeAllowedPalette(allowedColorIds));
+  const preimages = enumeratePreimages(board, size, { maxBranches: 48 });
+  const filtered = preimages
+    .map((item) => item.before)
+    .filter((before) => boardUsesOnlyColors(before, allowedColorIds));
+
+  if (!filtered.length) return null;
+  return filtered[Math.floor(rng() * filtered.length)];
+}
+
+export function buildBoardBackwardPalette(board, size, backwardSteps, allowedColorIds, rng = Math.random) {
+  let current = board.slice();
+  const steps = Math.max(0, Math.floor(backwardSteps));
+
+  for (let i = 0; i < steps; i += 1) {
+    const next = applyRandomInverseStepPalette(current, size, allowedColorIds, rng);
+    if (!next) return null;
+    current = next;
+  }
+
+  return current;
+}
+
 export function seedUnifiedGoal(size, depth, rng = Math.random, unifyColor = 1) {
   let board = Array(size * size).fill(unifyColor);
   const maxDepth = Math.max(0, Math.floor(depth));

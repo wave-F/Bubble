@@ -399,48 +399,115 @@
       "id": 9,
       "name": "分拣-03",
       "difficulty": "medium",
-      "homeBubbleColorId": 3,
+      "homeBubbleColorId": 0,
       "gridSize": 4,
       "gridCellSize": 0.95,
       "gridBubbleFill": 0.82,
       "gridVerticalAlign": "center",
       "gridVerticalOffset": 0.2,
-      "seed": 81003,
+      "seed": 1782798788011,
       "fruitCount": 16,
       "colorIds": [
-        3,
-        5
+        0,
+        2,
+        6
       ],
       "colorCounts": [
         {
-          "colorId": 3,
-          "count": 8
+          "colorId": 0,
+          "count": 6
         },
         {
-          "colorId": 5,
-          "count": 8
+          "colorId": 2,
+          "count": 5
+        },
+        {
+          "colorId": 6,
+          "count": 5
         }
       ],
       "cells": [
-        3,
-        5,
-        3,
-        5,
-        5,
-        3,
-        5,
-        3,
-        3,
-        5,
-        3,
-        5,
-        5,
-        3,
-        5,
-        3
+        6,
+        0,
+        2,
+        0,
+        6,
+        6,
+        0,
+        2,
+        6,
+        0,
+        0,
+        6,
+        2,
+        2,
+        0,
+        2
       ],
       "mechanisms": [],
-      "stepLimit": 12,
+      "stepLimit": 5,
+      "winMode": "unify"
+    },
+    {
+      "id": 10,
+      "name": "染色-10",
+      "difficulty": "hard",
+      "homeBubbleColorId": 2,
+      "gridSize": 5,
+      "gridCellSize": 0.9,
+      "gridBubbleFill": 0.8,
+      "gridVerticalAlign": "center",
+      "gridVerticalOffset": 0.2,
+      "seed": 1782800679881,
+      "fruitCount": 25,
+      "colorIds": [
+        2,
+        6,
+        7
+      ],
+      "colorCounts": [
+        {
+          "colorId": 2,
+          "count": 9
+        },
+        {
+          "colorId": 6,
+          "count": 3
+        },
+        {
+          "colorId": 7,
+          "count": 13
+        }
+      ],
+      "cells": [
+        2,
+        2,
+        2,
+        2,
+        6,
+        2,
+        2,
+        2,
+        2,
+        6,
+        2,
+        7,
+        7,
+        6,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7
+      ],
+      "mechanisms": [],
+      "stepLimit": 6,
       "winMode": "unify"
     }
   ]

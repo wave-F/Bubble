@@ -290,11 +290,53 @@
         color: #1d5fbf;
       }
 
+      .add-level-wrap {
+        position: relative;
+        flex-shrink: 0;
+      }
+
       #btn-add-level {
         white-space: nowrap;
         color: #1d5fbf;
         border-color: #9ec7ff;
         background: #f7fbff;
+      }
+
+      .add-level-menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        z-index: 20;
+        min-width: 168px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px;
+        border-radius: 10px;
+        border: 1px solid #d8e4f0;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(40, 52, 72, 0.12);
+      }
+
+      .add-level-menu.hidden {
+        display: none;
+      }
+
+      .add-level-menu button {
+        width: 100%;
+        text-align: left;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #e2eaf2;
+        background: #f8fbff;
+        color: #2a3a50;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .add-level-menu button:hover {
+        background: #e8f3ff;
+        border-color: #9ec7ff;
       }
 
       body.playtest-open { overflow: hidden; }
@@ -466,7 +508,13 @@
           <h2 data-i18n="editor.section.params">关卡参数</h2>
           <div class="level-tabs-row">
             <div class="level-tabs" id="level-tabs"></div>
-            <button id="btn-add-level" type="button">+ 新建关卡</button>
+            <div class="add-level-wrap" id="add-level-wrap">
+              <button id="btn-add-level" type="button" data-i18n="editor.addLevel.open">+ 新建关卡</button>
+              <div id="add-level-menu" class="add-level-menu hidden" role="menu">
+                <button type="button" role="menuitem" data-add-mode="blank" data-i18n="editor.addLevel.blank">空白关卡</button>
+                <button type="button" role="menuitem" data-add-mode="generate" data-i18n="editor.addLevel.generate">生成关卡</button>
+              </div>
+            </div>
           </div>
           <div class="field">
             <label for="level-name" data-i18n="editor.label.name">名称</label>
@@ -533,6 +581,7 @@
           </div>
           <div class="actions">
             <button id="btn-playtest" class="primary" type="button" data-i18n="editor.btn.playtest">试玩本关</button>
+            <button id="btn-reroll-generate" type="button" data-i18n="editor.btn.rerollGenerate">重新生成</button>
             <button id="btn-solve" type="button" data-i18n="editor.btn.solve">计算最优步数</button>
           </div>
 

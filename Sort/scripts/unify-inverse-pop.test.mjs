@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { applyPopToBoard } from "../src/systems/mechanism-dye-logic.js";
 import {
   applyRandomInverseStep,
+  applyRandomInverseStepPalette,
+  boardUsesOnlyColors,
+  buildBoardBackward,
+  buildBoardBackwardPalette,
   enumeratePreimages,
   seedUnifiedGoal,
-  buildBoardBackward,
 } from "../src/game/unify-inverse-pop.js";
 
 const MECH = new Map();
@@ -53,4 +56,35 @@ function testMechanismPopShootsAlongArrow() {
 }
 
 testMechanismPopShootsAlongArrow();
+
+function testPaletteBackward5x5() {
+  const size = 5;
+  const palette = [1, 3];
+  const rng = createSeededRandom(77);
+  let board = Array(size * size).fill(1);
+  board = applyPopToBoard(board, size, MECH, 2, 2);
+  assert.ok(board, "forward pop on unified 5x5");
+
+  assert.ok(
+    applyRandomInverseStepPalette(board, size, palette, rng),
+    "single palette inverse step should succeed",
+  );
+
+  const backward = buildBoardBackwardPalette(board, size, 1, palette, rng);
+  assert.ok(backward, "one-step palette backward walk should succeed");
+  assert.ok(boardUsesOnlyColors(backward, palette), "only palette colours");
+}
+
+function createSeededRandom(seed) {
+  let t = seed >>> 0;
+  return function rand() {
+    t += 0x6d2b79f5;
+    let r = t;
+    r = Math.imul(r ^ (r >>> 15), r | 1);
+    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+testPaletteBackward5x5();
 console.log("unify-inverse-pop.test.mjs: PASS");
