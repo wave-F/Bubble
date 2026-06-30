@@ -35,6 +35,7 @@ export function createVictoryPopSequence(options = {}) {
   let nextPopIn = 0;
   let currentInterval = config.initialInterval;
   let settleRemaining = 0;
+  let settleAfterCompleteOverride = null;
 
   function reset() {
     queue = [];
@@ -43,10 +44,14 @@ export function createVictoryPopSequence(options = {}) {
     nextPopIn = 0;
     currentInterval = readPopConfig().initialInterval;
     settleRemaining = 0;
+    settleAfterCompleteOverride = null;
   }
 
-  function start(fruits, { applyStartDelay = false } = {}) {
+  function start(fruits, { applyStartDelay = false, settleAfterCompleteOverride: settleOverride } = {}) {
     reset();
+    if (Number.isFinite(settleOverride)) {
+      settleAfterCompleteOverride = Math.max(0, settleOverride);
+    }
     started = true;
     queue = fruits
       .filter((fruit) => fruit?.active && !fruit.sliced)
@@ -108,7 +113,8 @@ export function createVictoryPopSequence(options = {}) {
       nextPopIn = currentInterval;
     } else {
       nextPopIn = 0;
-      settleRemaining = readPopConfig().settleAfterComplete;
+      const pop = readPopConfig();
+      settleRemaining = settleAfterCompleteOverride ?? pop.settleAfterComplete;
     }
   }
 

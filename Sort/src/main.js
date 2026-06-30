@@ -504,7 +504,27 @@ const state = {
 
   gameplayIntroOpen: false,
   quickLevelRestart: false,
+  restartCinematicActive: false,
+  restartAwaitingRespawn: false,
+  restartRespawnDrainSince: 0,
+  skipLevelTipOnNextLoad: false,
 };
+
+const RESTART_RESPAWN_DRAIN_MAX_MS = 1200;
+
+function fruitBurstPresentationActive(fruit) {
+  if (!fruit?.sliced || !fruit.active) return false;
+  const state = fruit.burstState;
+  return state !== "IDLE" && state !== "RESET";
+}
+
+function boardBurstPresentationActive() {
+  if (burstSystem.hasActivePresentation()) return true;
+  for (const fruit of fruits) {
+    if (fruitBurstPresentationActive(fruit)) return true;
+  }
+  return false;
+}
 
 const persistence = createPersistenceController({
   state,
@@ -1150,7 +1170,11 @@ const sessionFlow = createSessionFlowController({
     }
     gameAudio.playRandomPopAudio({ volumeScale: 0.3 });
     setGameplayRulesPanelVisible(true);
-    if (!quickRestart) {
+    const skipTip = state.skipLevelTipOnNextLoad;
+    state.skipLevelTipOnNextLoad = false;
+    if (skipTip) {
+      gameplayTip.clear();
+    } else if (!quickRestart) {
       const gridSize = level.gridSize ?? 3;
       const hasMechanisms = Array.isArray(level.mechanisms) && level.mechanisms.length > 0;
       const tip = index === 0
@@ -1164,6 +1188,13 @@ const sessionFlow = createSessionFlowController({
       gameplayTip.clear();
     }
     void warmupBubbleRenderer({ renderer, scene, camera, fruits });
+  },
+  onAfterBoardRespawn: (level) => {
+    gridBoardSystem.show(level.gridLayout, { fadeIn: false });
+    state.levelTransitioning = true;
+    bubbleSpawnSystem.start(fruits, level.gridLayout, { instant: false });
+    gameAudio.playRandomPopAudio({ volumeScale: 0.3 });
+    gameplayTip.clear();
   },
   createBubbleEntity: ({
     id,
@@ -1655,7 +1686,17 @@ function bindGameplaySettingsMenu() {
 }
 
 function canRestartCurrentLevel() {
-  return state.started && state.resourcesReady && !state.gameplayIntroOpen;
+  return (
+    state.started
+    && state.resourcesReady
+    && !state.gameplayIntroOpen
+    && !state.restartCinematicActive
+    && !state.restartAwaitingRespawn
+    && !state.levelTransitioning
+    && !victoryPopSequence.hasStarted()
+    && !state.defeatPopActive
+    && !state.gameOver
+  );
 }
 
 function bindGameplayRestart() {
@@ -1663,16 +1704,32 @@ function bindGameplayRestart() {
     ev.stopPropagation();
     if (!canRestartCurrentLevel()) return;
     gameAudio.playUiClickAudio();
-    state.quickLevelRestart = true;
-    resetVictoryPopState();
-    mechanismArrowProjectileSystem.clear();
-    colorUnifySystem.clear();
     gameplayTip.clear();
     state.gameOver = false;
     state.outOfMovesHandling = false;
     state.defeatPopActive = false;
     state.defeatModalDelayRemaining = 0;
-    sessionFlow.retryCurrentLevelSimple();
+    state.pointerDown = false;
+    state.pressTarget = null;
+    state.pressAwaitRelease = false;
+    clearQueuedSelections();
+    state.pendingPops.length = 0;
+    mechanismArrowProjectileSystem.clear();
+    colorUnifySystem.clear();
+    levelFlow.reset();
+
+    state.restartCinematicActive = true;
+    state.restartAwaitingRespawn = false;
+    state.restartRespawnDrainSince = 0;
+    state.levelTransitioning = true;
+    state.victoryPopActive = true;
+    victoryPopSequence.start(fruits, { settleAfterCompleteOverride: 0 });
+    if (!victoryPopSequence.hasStarted()) {
+      state.restartCinematicActive = false;
+      state.levelTransitioning = false;
+      state.victoryPopActive = false;
+      sessionFlow.retryCurrentLevelSimple();
+    }
   });
 }
 
@@ -2489,7 +2546,17 @@ function resetFruits(level) {
 }
 
 function onPointerDown(ev) {
-  if (!state.resourcesReady || !state.started || state.gameOver || state.levelTransitioning || state.victoryPopActive || state.defeatPopActive || state.gameplayIntroOpen || !renderer) return;
+  if (
+    !state.resourcesReady
+    || !state.started
+    || state.gameOver
+    || state.levelTransitioning
+    || state.restartCinematicActive
+    || state.victoryPopActive
+    || state.defeatPopActive
+    || state.gameplayIntroOpen
+    || !renderer
+  ) return;
   if (state.pressAwaitRelease || mechanismArrowProjectileSystem.isActive()) return;
   if (state.stepLimit > 0 && state.stepsUsed >= state.stepLimit) {
     gameUI.showCommentary("Out of moves for this level.", 1000);
@@ -2586,7 +2653,7 @@ function tick() {
     victoryPopSequence.update(dt, {
       onPop: (fruit) => {
         popWaveSystem.triggerCrossWave(fruit, fruits);
-        const burstWhite = state.victoryPopActive && !state.defeatPopActive;
+        const burstWhite = (state.victoryPopActive || state.restartCinematicActive) && !state.defeatPopActive;
         fruit.pop(burstDirForFruit(fruit), 2.4, { burstWhite });
         gameAudio.playRandomPopAudio();
       },
@@ -2601,6 +2668,26 @@ function tick() {
   for (const fruit of fruits) {
     fruit.update(dt, bounds);
     if (fruit.active && !fruit.sliced) remaining += 1;
+  }
+
+  if (
+    state.restartCinematicActive
+    && victoryPopSequence.isComplete()
+    && remaining === 0
+  ) {
+    if (!state.restartAwaitingRespawn) {
+      state.restartAwaitingRespawn = true;
+      state.restartRespawnDrainSince = wallNow;
+    }
+    const drainElapsed = wallNow - state.restartRespawnDrainSince;
+    const burstDrained = !boardBurstPresentationActive();
+    if (burstDrained || drainElapsed >= RESTART_RESPAWN_DRAIN_MAX_MS) {
+      state.restartCinematicActive = false;
+      state.restartAwaitingRespawn = false;
+      state.restartRespawnDrainSince = 0;
+      resetVictoryPopState();
+      sessionFlow.respawnBoardFromActiveLevel();
+    }
   }
 
   bubbleSpawnSystem.update(dt);
@@ -2619,6 +2706,7 @@ function tick() {
     boardUnified
     && remaining > 0
     && !victoryPopSequence.hasStarted()
+    && !state.restartCinematicActive
     && !state.gameOver
     && !state.defeatPopActive
   ) {
@@ -2650,7 +2738,7 @@ function tick() {
   let levelClearSignal = remaining;
   if (victoryPopSequence.hasStarted()) {
     const victoryPopsDone = victoryPopSequence.isComplete() && remaining === 0;
-    if (victoryPopsDone && !state.defeatPopActive && !state.gameOver) {
+    if (victoryPopsDone && !state.defeatPopActive && !state.gameOver && !state.restartCinematicActive) {
       state.victoryPopActive = false;
       levelClearSignal = 0;
     } else if (state.defeatPopActive || state.gameOver || !victoryPopsDone) {
