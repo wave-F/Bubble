@@ -5,7 +5,9 @@ import { createGridBoardSystem } from "./systems/grid-board-system.js";
 import { createBubbleSpawnSystem } from "./systems/bubble-spawn-system.js";
 import { createPressSystem } from "./systems/press-system.js";
 import { createColorUnifySystem } from "./systems/color-unify-system.js";
+
 import { createPopWaveSystem, playArrowRayCellWave } from "./systems/pop-wave-system.js";
+import { createNeighborPressPushSystem } from "./systems/neighbor-press-push-system.js";
 import { createMechanismArrowProjectileSystem } from "./systems/mechanism-arrow-projectile-system.js";
 import { createVictoryPopSequence } from "./systems/victory-pop-sequence.js";
 import { createVictoryPresentation } from "./systems/victory-presentation-system.js";
@@ -38,10 +40,18 @@ import { readGameSettings, createSettingsUiController } from "./game/settings-ui
 import { createRewardFlow } from "./game/reward-flow.js";
 import { createHomeScreenController } from "./game/home-screen.js";
 import { createSessionFlowController } from "./game/session-flow.js";
+import {
+  applyGameplayHudTheme,
+  setGameplayHudControlsVisible,
+} from "./game/gameplay-hud-theme.js";
 import { createLayoutViewportController } from "./game/layout-viewport.js";
 import { createRoundStateController } from "./game/round-state.js";
 
 import { createLightDebugUiController } from "./game/light-debug-ui.js";
+import { createPopRingDebugUiController } from "./game/pop-ring-debug-ui.js";
+import { createBubblePopDebugUiController } from "./game/bubble-pop-debug-ui.js";
+import { POP_RING_DEFAULTS, loadPopRingTuning } from "./game/pop-ring-tuning.js";
+import { BUBBLE_POP_DEFAULTS, BUBBLE_POP_STORAGE_KEY } from "./game/bubble-pop-tuning.js";
 import {
   applyDomI18n,
   mountLocaleToggle,
@@ -63,6 +73,7 @@ const appEl = document.getElementById("app");
 const phoneFrameEl = document.getElementById("phone-frame");
 const gameplayRulesPanelEl = document.getElementById("gameplay-rules-panel");
 const hudEl = document.getElementById("hud");
+const hudMetaLeftEl = document.querySelector("#hud .hud-meta-left");
 const stepsEl = document.getElementById("score");
 const hudLevelEl = document.getElementById("hud-level");
 
@@ -245,6 +256,33 @@ const lightValueFillEl = document.querySelector('[data-value-for="light-slider-f
 const lightToggleEnvironmentEl = document.getElementById("light-toggle-environment");
 const lightSliderEnvironmentEl = document.getElementById("light-slider-environment");
 const lightValueEnvironmentEl = document.querySelector('[data-value-for="light-slider-environment"]');
+const popRingDebugToggleBtn = document.getElementById("pop-ring-debug-toggle");
+const popRingDebugPanelEl = document.getElementById("pop-ring-debug-panel");
+const popRingDebugResetBtn = document.getElementById("pop-ring-debug-reset");
+const popRingToggleEnabledEl = document.getElementById("pop-ring-toggle-enabled");
+const popRingSliderScaleStartEl = document.getElementById("pop-ring-slider-scale-start");
+const popRingSliderScaleEndEl = document.getElementById("pop-ring-slider-scale-end");
+const popRingSliderInnerEl = document.getElementById("pop-ring-slider-inner");
+const popRingSliderOuterEl = document.getElementById("pop-ring-slider-outer");
+const popRingSliderDurationEl = document.getElementById("pop-ring-slider-duration");
+const popRingSliderOpacityEl = document.getElementById("pop-ring-slider-opacity");
+const popRingSliderLightnessEl = document.getElementById("pop-ring-slider-lightness");
+const popRingSelectShapeEl = document.getElementById("pop-ring-select-shape");
+const popRingValueScaleStartEl = document.querySelector('[data-value-for="pop-ring-slider-scale-start"]');
+const popRingValueScaleEndEl = document.querySelector('[data-value-for="pop-ring-slider-scale-end"]');
+const popRingValueInnerEl = document.querySelector('[data-value-for="pop-ring-slider-inner"]');
+const popRingValueOuterEl = document.querySelector('[data-value-for="pop-ring-slider-outer"]');
+const popRingValueDurationEl = document.querySelector('[data-value-for="pop-ring-slider-duration"]');
+const popRingValueOpacityEl = document.querySelector('[data-value-for="pop-ring-slider-opacity"]');
+const popRingValueLightnessEl = document.querySelector('[data-value-for="pop-ring-slider-lightness"]');
+const bubblePopDebugToggleBtn = document.getElementById("bubble-pop-debug-toggle");
+const bubblePopDebugPanelEl = document.getElementById("bubble-pop-debug-panel");
+const bubblePopDebugResetBtn = document.getElementById("bubble-pop-debug-reset");
+const bubblePopFlashWhiteRadio = document.getElementById("bubble-pop-flash-white");
+const bubblePopFlashLightRadio = document.getElementById("bubble-pop-flash-light");
+const bubblePopLiftGroupEl = document.getElementById("bubble-pop-lift-group");
+const bubblePopLiftSliderEl = document.getElementById("bubble-pop-slider-lift");
+const bubblePopLiftValueEl = document.querySelector('[data-value-for="bubble-pop-slider-lift"]');
 const winCinematicToggleBtn = document.getElementById("win-cinematic-toggle");
 const winCinematicPanelEl = document.getElementById("win-cinematic-panel");
 const winCinematicResetBtn = document.getElementById("win-cinematic-reset");
@@ -295,6 +333,7 @@ const homeUiTuningStorageKey = "fruit_home_ui_tuning_v1";
 const gameSettingsStorageKey = "fruit_game_settings_v1";
 const uiLayoutDebugStorageKey = "fruit_ui_layout_debug_v1";
 const hudDebugStorageKey = "fruit_hud_debug_v1";
+const popRingDebugStorageKey = "pop_ring_debug_v1";
 const gameplayIntroStorageKey = "fruit_gameplay_intro_seen_v1";
 const staminaMax = 5;
 const staminaInfinite = true;
@@ -482,6 +521,9 @@ const persistence = createPersistenceController({
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xfffbf2);
 
+/** Pop rings only — composited in a second render pass after the main board. */
+const overlayScene = new THREE.Scene();
+
 const tessellatedBackgroundTuning = loadTessellatedBackgroundTuning(
   PLAYFIELD_BACKGROUND_DEFAULTS,
   tessellatedBackgroundTuningStorageKey,
@@ -593,6 +635,9 @@ const mechanismArrowProjectileSystem = createMechanismArrowProjectileSystem({
 });
 colorUnifySystem.setProjectileActiveChecker(() => mechanismArrowProjectileSystem.isActive());
 const popWaveSystem = createPopWaveSystem({
+  findGridNeighborFruits: colorUnifySystem.findGridNeighborFruits,
+});
+const neighborPressPushSystem = createNeighborPressPushSystem({
   findGridNeighborFruits: colorUnifySystem.findGridNeighborFruits,
 });
 const victoryPresentation = createVictoryPresentation({
@@ -823,12 +868,57 @@ const lightDebugUi = createLightDebugUiController({
   onPlayClick: () => gameAudio.playUiClickAudio(),
 });
 
+const popRingDebugUi = createPopRingDebugUiController({
+  elements: {
+    toggleBtn: popRingDebugToggleBtn,
+    panelEl: popRingDebugPanelEl,
+    resetBtn: popRingDebugResetBtn,
+    enabledToggle: popRingToggleEnabledEl,
+    scaleStartSlider: popRingSliderScaleStartEl,
+    scaleStartValue: popRingValueScaleStartEl,
+    scaleEndSlider: popRingSliderScaleEndEl,
+    scaleEndValue: popRingValueScaleEndEl,
+    ringInnerSlider: popRingSliderInnerEl,
+    ringInnerValue: popRingValueInnerEl,
+    ringOuterSlider: popRingSliderOuterEl,
+    ringOuterValue: popRingValueOuterEl,
+    durationSlider: popRingSliderDurationEl,
+    durationValue: popRingValueDurationEl,
+    opacityPeakSlider: popRingSliderOpacityEl,
+    opacityPeakValue: popRingValueOpacityEl,
+    lightnessSlider: popRingSliderLightnessEl,
+    lightnessValue: popRingValueLightnessEl,
+    shapeSelect: popRingSelectShapeEl,
+  },
+  burstSystem,
+  defaults: POP_RING_DEFAULTS,
+  storageKey: popRingDebugStorageKey,
+  onPlayClick: () => gameAudio.playUiClickAudio(),
+});
+
+const bubblePopDebugUi = createBubblePopDebugUiController({
+  elements: {
+    toggleBtn: bubblePopDebugToggleBtn,
+    panelEl: bubblePopDebugPanelEl,
+    resetBtn: bubblePopDebugResetBtn,
+    flashWhiteRadio: bubblePopFlashWhiteRadio,
+    flashLightRadio: bubblePopFlashLightRadio,
+    liftSlider: bubblePopLiftSliderEl,
+    liftValue: bubblePopLiftValueEl,
+    liftGroup: bubblePopLiftGroupEl,
+  },
+  defaults: BUBBLE_POP_DEFAULTS,
+  storageKey: BUBBLE_POP_STORAGE_KEY,
+  onPlayClick: () => gameAudio.playUiClickAudio(),
+});
+
 const BubbleEntity = createBubbleEntityClass({
   bubbleTuning,
   bubbleBaseRadius,
   bubbleGeometry,
   burstSystem,
   createBubbleMaterialFn: createBubbleMaterialForTuning,
+  getBubblePopTuning: () => bubblePopDebugUi.getTuning(),
 });
 
 function readGameplayIntroSeen() {
@@ -1037,7 +1127,14 @@ const sessionFlow = createSessionFlowController({
   onResetVictoryPop: resetVictoryPopState,
   onPersistLevelProgress: persistLevelProgress,
   onBackHomeFromResult: backHomeFromResult,
+  onLevelLoadStarted: () => {
+    setGameplayHudControlsVisible(true, {
+      hudMetaLeftEl,
+      restartBtnEl: gameplayRestartBtnEl,
+    });
+  },
   onAfterLevelLoaded: (index, level) => {
+    applyGameplayHudTheme(level, colors, { hudRootEl: hudEl });
     backgroundDebugUi.applyBoardComplement?.({
       resetBlur: false,
       persist: true,
@@ -1151,12 +1248,13 @@ function createGameRuntime() {
 
   const burstSystem = createBurstSystem({
     scene,
+    overlayScene,
+    camera,
     colors,
-    bubbleTuning,
     bubbleBaseRadius,
     burstBubbleGeometry,
-    createBubbleMaterial: createBubbleMaterialForTuning,
     poolSize: 180,
+    popRingTuning: loadPopRingTuning(popRingDebugStorageKey),
   });
 
   const gameAudio = createGameAudio({
@@ -1227,6 +1325,10 @@ function createGameRuntime() {
       resetVictoryPopState();
     },
     onVictoryFxStart: () => {
+      setGameplayHudControlsVisible(false, {
+        hudMetaLeftEl,
+        restartBtnEl: gameplayRestartBtnEl,
+      });
       applyActiveVictoryPalette(state.victoryBubbleColorId);
       victoryPresentation.start({ gridBoardSystem });
     },
@@ -2146,6 +2248,8 @@ function init() {
   setupBackgroundDebugControls();
   setupRestartHudDebugControls();
   setupLightDebugControls();
+  setupPopRingDebugControls();
+  setupBubblePopDebugControls();
   setupWinCinematicDebugControls();
 
   window.addEventListener("resize", resize);
@@ -2167,6 +2271,14 @@ function setupBackgroundDebugControls() {
 
 function setupLightDebugControls() {
   lightDebugUi.bind();
+}
+
+function setupPopRingDebugControls() {
+  popRingDebugUi.bind();
+}
+
+function setupBubblePopDebugControls() {
+  bubblePopDebugUi.bind();
 }
 
 function setupWinCinematicDebugControls() {
@@ -2461,6 +2573,7 @@ function tick() {
       fruit.pop(burstDir, 2.4);
     },
   });
+  neighborPressPushSystem.update({ state, fruits, dt });
   processPendingPops(dt);
   mechanismArrowProjectileSystem.update(dt);
   colorUnifySystem.update();
@@ -2472,7 +2585,9 @@ function tick() {
   if (victoryPopSequence.hasStarted()) {
     victoryPopSequence.update(dt, {
       onPop: (fruit) => {
-        fruit.pop(burstDirForFruit(fruit), 2.4);
+        popWaveSystem.triggerCrossWave(fruit, fruits);
+        const burstWhite = state.victoryPopActive && !state.defeatPopActive;
+        fruit.pop(burstDirForFruit(fruit), 2.4, { burstWhite });
         gameAudio.playRandomPopAudio();
       },
     });
@@ -2492,6 +2607,11 @@ function tick() {
   playfieldBackground.update(dt);
 
   renderer.render(scene, camera);
+  const restoreAutoClear = renderer.autoClear;
+  renderer.autoClear = false;
+  renderer.clearDepth();
+  renderer.render(overlayScene, camera);
+  renderer.autoClear = restoreAutoClear;
 
   const boardUnified = colorUnifySystem.isBoardUnified(fruits);
 
@@ -2503,7 +2623,7 @@ function tick() {
     && !state.defeatPopActive
   ) {
     captureVictoryBubbleColorId(fruits);
-    victoryPopSequence.start(fruits);
+    victoryPopSequence.start(fruits, { applyStartDelay: true });
     state.victoryPopActive = true;
     state.pointerDown = false;
     state.pressAwaitRelease = false;

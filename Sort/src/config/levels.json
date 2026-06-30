@@ -357,12 +357,12 @@
       "gridBubbleFill": 0.82,
       "gridVerticalAlign": "center",
       "gridVerticalOffset": 0.2,
-      "seed": 71002,
+      "seed": 1782823485101,
       "fruitCount": 16,
       "colorIds": [
         0,
-        3,
-        5
+        1,
+        7
       ],
       "colorCounts": [
         {
@@ -370,34 +370,39 @@
           "count": 6
         },
         {
-          "colorId": 3,
+          "colorId": 1,
           "count": 5
         },
         {
-          "colorId": 5,
+          "colorId": 7,
           "count": 5
         }
       ],
       "cells": [
-        3,
+        7,
+        1,
         0,
-        5,
-        5,
+        1,
+        1,
+        7,
         0,
-        3,
         0,
-        5,
-        5,
-        3,
+        7,
+        1,
         0,
-        3,
+        1,
         0,
-        5,
-        3,
+        7,
+        7,
         0
       ],
-      "mechanisms": [],
-      "stepLimit": 13,
+      "mechanisms": [
+        {
+          "index": 14,
+          "direction": "up"
+        }
+      ],
+      "stepLimit": 5,
       "winMode": "unify"
     },
     {

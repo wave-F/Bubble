@@ -1,4 +1,5 @@
 const DEFAULTS = {
+  startDelaySec: 0,
   initialInterval: 0.11,
   accelFactor: 0.78,
   minInterval: 0.035,
@@ -21,6 +22,7 @@ export function createVictoryPopSequence(options = {}) {
   function readPopConfig() {
     const t = getTuning?.();
     return {
+      startDelaySec: t?.victoryPopStartDelaySec ?? config.startDelaySec,
       initialInterval: t?.popInitialInterval ?? config.initialInterval,
       accelFactor: t?.popAccelFactor ?? config.accelFactor,
       minInterval: t?.popMinInterval ?? config.minInterval,
@@ -29,6 +31,7 @@ export function createVictoryPopSequence(options = {}) {
   }
   let queue = [];
   let started = false;
+  let startDelayRemaining = 0;
   let nextPopIn = 0;
   let currentInterval = config.initialInterval;
   let settleRemaining = 0;
@@ -36,12 +39,13 @@ export function createVictoryPopSequence(options = {}) {
   function reset() {
     queue = [];
     started = false;
+    startDelayRemaining = 0;
     nextPopIn = 0;
     currentInterval = readPopConfig().initialInterval;
     settleRemaining = 0;
   }
 
-  function start(fruits) {
+  function start(fruits, { applyStartDelay = false } = {}) {
     reset();
     started = true;
     queue = fruits
@@ -49,19 +53,39 @@ export function createVictoryPopSequence(options = {}) {
       .sort(sortRowMajor);
     const pop = readPopConfig();
     currentInterval = pop.initialInterval;
-    nextPopIn = queue.length > 0 ? currentInterval : 0;
+    startDelayRemaining =
+      applyStartDelay && queue.length > 0 ? Math.max(0, pop.startDelaySec) : 0;
+    nextPopIn = startDelayRemaining > 0 ? 0 : queue.length > 0 ? currentInterval : 0;
   }
 
   function isActive() {
-    return started && (queue.length > 0 || nextPopIn > 0 || settleRemaining > 0);
+    return (
+      started
+      && (queue.length > 0 || nextPopIn > 0 || settleRemaining > 0 || startDelayRemaining > 0)
+    );
   }
 
   function isComplete() {
-    return started && queue.length === 0 && nextPopIn <= 0 && settleRemaining <= 0;
+    return (
+      started
+      && queue.length === 0
+      && nextPopIn <= 0
+      && settleRemaining <= 0
+      && startDelayRemaining <= 0
+    );
   }
 
   function update(dt, { onPop } = {}) {
     if (!started) return;
+
+    if (startDelayRemaining > 0) {
+      startDelayRemaining = Math.max(0, startDelayRemaining - dt);
+      if (startDelayRemaining > 0) return;
+      if (queue.length > 0) {
+        nextPopIn = readPopConfig().initialInterval;
+      }
+      return;
+    }
 
     if (queue.length === 0) {
       if (settleRemaining > 0) {

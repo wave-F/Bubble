@@ -11,6 +11,7 @@ export function createColorUnifySystem() {
   const spreadVisited = new Set();
   let isProjectileActive = () => false;
 
+
   function isActiveFruit(fruit) {
     return Boolean(fruit?.active && !fruit.sliced);
   }
@@ -67,11 +68,10 @@ export function createColorUnifySystem() {
     pendingDyes.splice(insertAt, 0, job);
   }
 
-  function applyDyeNow(fruit, colorId, colorDef, { visualPulse = true } = {}) {
+  function applyDyeNow(fruit, colorId, colorDef) {
     if (!isActiveFruit(fruit)) return false;
     if (fruit.colorId === colorId) return false;
-    fruit.setColorId(colorId, colorDef.base);
-    if (visualPulse) fruit.playDyePulse?.();
+    fruit.beginDyePresentation?.(colorId, colorDef.base);
     return true;
   }
 
@@ -163,7 +163,7 @@ export function createColorUnifySystem() {
   }
 
   function pierceRayTarget(fruit, { colorId, colorDef }) {
-    const changed = applyDyeNow(fruit, colorId, colorDef, { visualPulse: false });
+    const changed = applyDyeNow(fruit, colorId, colorDef);
     if (!changed) return { chain: null, changed: false };
     let chain = null;
     if (fruit.mechanismDirection && markMechanismRayEmitted(fruit)) {
@@ -208,10 +208,8 @@ export function createColorUnifySystem() {
 
     while (pendingDyes.length > 0 && pendingDyes[0].deadline <= now) {
       const job = pendingDyes.shift();
-      const { fruit, colorId, colorDef, onApplied, visualPulse } = job;
-      const changed = applyDyeNow(fruit, colorId, colorDef, {
-        visualPulse: visualPulse !== false,
-      });
+      const { fruit, colorId, colorDef, onApplied } = job;
+      const changed = applyDyeNow(fruit, colorId, colorDef);
       if (changed && typeof onApplied === "function") {
         onApplied();
       }

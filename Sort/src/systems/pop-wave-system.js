@@ -3,6 +3,16 @@ import { DIRECTION_DELTA } from "./mechanism-dye-logic.js";
 const DEFAULT_STAGGER_SEC = 0.05;
 const DEFAULT_WAVE_RINGS = 1;
 
+export const POP_WAVE_COLOR_FLASH = 0xffffff;
+
+export const POP_WAVE_DEFAULTS = {
+  scalePeak: 1.2,
+  scaleDip: 0.88,
+  squashDuration: 0.07,
+  overshootDuration: 0.11,
+  settleDuration: 0.13,
+};
+
 function isGridWaveTarget(fruit) {
   return fruit?.motionMode === "grid" && fruit.active && !fruit.sliced;
 }
@@ -11,8 +21,7 @@ export function playArrowRayCellWave(fruit, { delaySec = 0 } = {}) {
   if (!isGridWaveTarget(fruit)) return;
   fruit.playPopWave?.({
     delay: delaySec,
-    scalePeak: 1.16,
-    scaleDip: 0.84,
+    ...POP_WAVE_DEFAULTS,
   });
 }
 
@@ -100,8 +109,7 @@ export function createPopWaveSystem({ findGridNeighborFruits } = {}) {
       if (fruit) {
         fruit.playPopWave?.({
           delay: step * staggerSec,
-          scalePeak: 1.16,
-          scaleDip: 0.84,
+          ...POP_WAVE_DEFAULTS,
         });
       }
       step += 1;
@@ -130,8 +138,7 @@ export function createPopWaveSystem({ findGridNeighborFruits } = {}) {
           if (fruit.colorId !== sourceColorId) return;
           fruit.playPopWave?.({
             delay: staggerIndex * staggerSec,
-            scalePeak: 1.16,
-            scaleDip: 0.84,
+            ...POP_WAVE_DEFAULTS,
           });
           staggerIndex += 1;
         });

@@ -519,6 +519,113 @@
       </div>
     </div>
 
+    <div id="pop-ring-debug" data-i18n-aria="index.debug.popRingAria">
+      <button id="pop-ring-debug-toggle" class="tool-btn" type="button" data-i18n="index.debug.popRingToggle">Pop ring</button>
+      <div id="pop-ring-debug-panel" class="hidden">
+        <div class="pop-ring-debug-title" data-i18n="index.debug.popRingTitle">Pop burst ring</div>
+
+        <label class="pop-ring-debug-enable">
+          <input id="pop-ring-toggle-enabled" type="checkbox" checked />
+          <span data-i18n="index.debug.popRingEnabled">Show ring on pop</span>
+        </label>
+
+        <div class="pop-ring-debug-group">
+          <div class="pop-ring-debug-group-head">
+            <span data-i18n="index.debug.popRingShape">Outline shape</span>
+          </div>
+          <select id="pop-ring-select-shape" class="pop-ring-debug-select">
+            <option value="ring" data-i18n="index.debug.popRingShapeRing">Ring</option>
+            <option value="cross" data-i18n="index.debug.popRingShapeCross">Cross</option>
+            <option value="roundedStar" data-i18n="index.debug.popRingShapeStar">Rounded star (4)</option>
+          </select>
+        </div>
+
+        <div class="pop-ring-debug-group">
+          <div class="pop-ring-debug-group-head">
+            <span data-i18n="index.debug.popRingScaleStart">Scale start</span>
+            <span class="pop-ring-debug-value" data-value-for="pop-ring-slider-scale-start">0.75</span>
+          </div>
+          <input id="pop-ring-slider-scale-start" type="range" min="0.4" max="1.4" step="0.01" value="0.75" />
+        </div>
+
+        <div class="pop-ring-debug-group">
+          <div class="pop-ring-debug-group-head">
+            <span data-i18n="index.debug.popRingScaleEnd">Scale end</span>
+            <span class="pop-ring-debug-value" data-value-for="pop-ring-slider-scale-end">3.35</span>
+          </div>
+          <input id="pop-ring-slider-scale-end" type="range" min="1.5" max="6" step="0.05" value="3.35" />
+        </div>
+
+        <div class="pop-ring-debug-group">
+          <div class="pop-ring-debug-group-head">
+            <span data-i18n="index.debug.popRingInner">Ring inner</span>
+            <span class="pop-ring-debug-value" data-value-for="pop-ring-slider-inner">0.97</span>
+          </div>
+          <input id="pop-ring-slider-inner" type="range" min="0.85" max="0.99" step="0.005" value="0.97" />
+        </div>
+
+        <div class="pop-ring-debug-group">
+          <div class="pop-ring-debug-group-head">
+            <span data-i18n="index.debug.popRingOuter">Ring outer</span>
+            <span class="pop-ring-debug-value" data-value-for="pop-ring-slider-outer">1.03</span>
+          </div>
+          <input id="pop-ring-slider-outer" type="range" min="1.01" max="1.2" step="0.005" value="1.03" />
+        </div>
+
+        <div class="pop-ring-debug-group">
+          <div class="pop-ring-debug-group-head">
+            <span data-i18n="index.debug.popRingDuration">Duration (s)</span>
+            <span class="pop-ring-debug-value" data-value-for="pop-ring-slider-duration">0.38</span>
+          </div>
+          <input id="pop-ring-slider-duration" type="range" min="0.12" max="1.2" step="0.02" value="0.38" />
+        </div>
+
+        <div class="pop-ring-debug-group">
+          <div class="pop-ring-debug-group-head">
+            <span data-i18n="index.debug.popRingOpacity">Opacity peak</span>
+            <span class="pop-ring-debug-value" data-value-for="pop-ring-slider-opacity">1.00</span>
+          </div>
+          <input id="pop-ring-slider-opacity" type="range" min="0.2" max="1" step="0.01" value="1" />
+        </div>
+
+        <div class="pop-ring-debug-group">
+          <div class="pop-ring-debug-group-head">
+            <span data-i18n="index.debug.popRingLightness">Lightness +</span>
+            <span class="pop-ring-debug-value" data-value-for="pop-ring-slider-lightness">0.14</span>
+          </div>
+          <input id="pop-ring-slider-lightness" type="range" min="0" max="0.4" step="0.01" value="0.14" />
+        </div>
+
+        <button id="pop-ring-debug-reset" class="tool-btn pop-ring-debug-reset" type="button" data-i18n="index.debug.popRingReset">Reset defaults</button>
+      </div>
+    </div>
+
+    <div id="bubble-pop-debug" data-i18n-aria="index.debug.bubblePopAria">
+      <button id="bubble-pop-debug-toggle" class="tool-btn" type="button" data-i18n="index.debug.bubblePopToggle">Bubble pop</button>
+      <div id="bubble-pop-debug-panel" class="hidden">
+        <div class="bubble-pop-debug-title" data-i18n="index.debug.bubblePopTitle">Neighbour pop flash</div>
+
+        <label class="bubble-pop-debug-radio">
+          <input id="bubble-pop-flash-white" type="radio" name="bubble-pop-flash-mode" value="white" checked />
+          <span data-i18n="index.debug.bubblePopFlashWhite">White flash</span>
+        </label>
+        <label class="bubble-pop-debug-radio">
+          <input id="bubble-pop-flash-light" type="radio" name="bubble-pop-flash-mode" value="lightBubble" />
+          <span data-i18n="index.debug.bubblePopFlashLight">Light bubble flash</span>
+        </label>
+
+        <div id="bubble-pop-lift-group" class="bubble-pop-debug-group" hidden>
+          <div class="bubble-pop-debug-group-head">
+            <span data-i18n="index.debug.bubblePopLightness">Lightness +</span>
+            <span class="bubble-pop-debug-value" data-value-for="bubble-pop-slider-lift">0.22</span>
+          </div>
+          <input id="bubble-pop-slider-lift" type="range" min="0.05" max="0.45" step="0.01" value="0.22" />
+        </div>
+
+        <button id="bubble-pop-debug-reset" class="tool-btn bubble-pop-debug-reset" type="button" data-i18n="index.debug.bubblePopReset">Reset defaults</button>
+      </div>
+    </div>
+
     <script type="module" src="./src/main.js?v=48-background-debug"></script>
   </body>
 </html>

@@ -40,9 +40,9 @@ const palette = [0xff1f4b, 0xff9800, 0x12cf5b, 0x1b8fff];
 const LanePopWavePhase = {
   IDLE: "IDLE",
   WAIT: "WAIT",
-  RISE: "RISE",
-  SINK: "SINK",
-  RECOVER: "RECOVER",
+  SQUASH: "SQUASH",
+  OVERSHOOT: "OVERSHOOT",
+  SETTLE: "SETTLE",
 };
 
 function smoothstep01(t) {
@@ -290,11 +290,11 @@ function createIdleLanePopWaveState() {
     phase: LanePopWavePhase.IDLE,
     elapsed: 0,
     delay: 0,
-    scalePeak: 1.16,
-    scaleDip: 0.84,
-    riseDuration: 0.14,
-    sinkDuration: 0.1,
-    recoverDuration: 0.16,
+    scalePeak: 1.2,
+    scaleDip: 0.88,
+    squashDuration: 0.07,
+    overshootDuration: 0.11,
+    settleDuration: 0.13,
     scaleMul: 1,
   };
 }
@@ -303,14 +303,14 @@ function playPopWaveOnLane(laneIndex) {
   const state = lanePopWaveStates[laneIndex];
   if (!state) return;
   state.delay = 0;
-  state.scalePeak = 1.16;
-  state.scaleDip = 0.84;
-  state.riseDuration = 0.14;
-  state.sinkDuration = 0.1;
-  state.recoverDuration = 0.16;
+  state.scalePeak = 1.2;
+  state.scaleDip = 0.88;
+  state.squashDuration = 0.07;
+  state.overshootDuration = 0.11;
+  state.settleDuration = 0.13;
   state.elapsed = 0;
   state.scaleMul = 1;
-  state.phase = LanePopWavePhase.RISE;
+  state.phase = LanePopWavePhase.SQUASH;
 }
 
 function updateLanePopWaveState(state, dt) {
@@ -323,51 +323,45 @@ function updateLanePopWaveState(state, dt) {
   const rest = 1;
   const peak = state.scalePeak;
   const dip = state.scaleDip;
-  const rebound = 1 + (peak - 1) * 0.35;
 
   if (state.phase === LanePopWavePhase.WAIT) {
     state.scaleMul = rest;
     if (state.elapsed >= state.delay) {
       state.elapsed -= state.delay;
-      state.phase = LanePopWavePhase.RISE;
+      state.phase = LanePopWavePhase.SQUASH;
     }
     return;
   }
 
-  if (state.phase === LanePopWavePhase.RISE) {
-    const t = state.riseDuration > 0
-      ? Math.min(1, state.elapsed / state.riseDuration)
+  if (state.phase === LanePopWavePhase.SQUASH) {
+    const t = state.squashDuration > 0
+      ? Math.min(1, state.elapsed / state.squashDuration)
       : 1;
-    state.scaleMul = lerp01(rest, peak, smoothstep01(t));
+    state.scaleMul = lerp01(rest, dip, smoothstep01(t));
     if (t >= 1) {
       state.elapsed = 0;
-      state.phase = LanePopWavePhase.SINK;
+      state.phase = LanePopWavePhase.OVERSHOOT;
     }
     return;
   }
 
-  if (state.phase === LanePopWavePhase.SINK) {
-    const t = state.sinkDuration > 0
-      ? Math.min(1, state.elapsed / state.sinkDuration)
+  if (state.phase === LanePopWavePhase.OVERSHOOT) {
+    const t = state.overshootDuration > 0
+      ? Math.min(1, state.elapsed / state.overshootDuration)
       : 1;
-    state.scaleMul = lerp01(peak, dip, smoothstep01(t));
+    state.scaleMul = lerp01(dip, peak, smoothstep01(t));
     if (t >= 1) {
       state.elapsed = 0;
-      state.phase = LanePopWavePhase.RECOVER;
+      state.phase = LanePopWavePhase.SETTLE;
     }
     return;
   }
 
-  if (state.phase === LanePopWavePhase.RECOVER) {
-    const duration = state.recoverDuration;
-    const t = duration > 0 ? Math.min(1, state.elapsed / duration) : 1;
-    if (t < 0.62) {
-      const t2 = t / 0.62;
-      state.scaleMul = lerp01(dip, rebound, smoothstep01(t2));
-    } else {
-      const t2 = (t - 0.62) / 0.38;
-      state.scaleMul = lerp01(rebound, rest, smoothstep01(t2));
-    }
+  if (state.phase === LanePopWavePhase.SETTLE) {
+    const t = state.settleDuration > 0
+      ? Math.min(1, state.elapsed / state.settleDuration)
+      : 1;
+    state.scaleMul = lerp01(peak, rest, smoothstep01(t));
     if (t >= 1) {
       state.scaleMul = rest;
       state.phase = LanePopWavePhase.IDLE;
