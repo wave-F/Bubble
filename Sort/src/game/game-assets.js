@@ -1,7 +1,7 @@
 export const GAME_IMAGE_URLS = [
   "./assets/images/currency128_Coin.png",
-  "./assets/images/tittleRibbon_Yellow.png",
-  "./assets/images/tittleRibbon_Red.png",
+  "./assets/images/HandPointer.png",
+  "./assets/images/iconShade_Restart.png",
 ];
 
 export const GAME_POP_SOUND_FILES = [
@@ -25,8 +25,11 @@ export const GAME_UI_AUDIO_URLS = [
 
 export const VICTORY_PERFECT_SOUND_URL = "./assets/audio/pop/win.mp3";
 
+export const GAME_LOSE_SOUND_URL = "./assets/audio/pop/gamelose.mp3";
+
 export const GAME_AUDIO_URLS = [
   ...GAME_POP_SOUND_URLS,
   ...GAME_UI_AUDIO_URLS,
   VICTORY_PERFECT_SOUND_URL,
+  GAME_LOSE_SOUND_URL,
 ];

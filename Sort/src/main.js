@@ -66,10 +66,12 @@ import {
   GAME_POP_SOUND_URLS,
   GAME_UI_AUDIO_URLS,
   VICTORY_PERFECT_SOUND_URL,
+  GAME_LOSE_SOUND_URL,
 } from "./game/game-assets.js";
 import { preloadFile, preloadImage } from "./game/resource-loader.js";
 import { createLoadingScreenController } from "./ui/loading-screen.js";
 import { createGameplayTipController } from "./ui/gameplay-tip.js";
+import { createLevel1TutorialController } from "./ui/level1-tutorial.js";
 const appEl = document.getElementById("app");
 const phoneFrameEl = document.getElementById("phone-frame");
 const gameplayRulesPanelEl = document.getElementById("gameplay-rules-panel");
@@ -139,6 +141,7 @@ const levelTestToggleBtn = document.getElementById("level-test-toggle");
 const levelTestPanelEl = document.getElementById("level-test-panel");
 const levelTestSelectEl = document.getElementById("level-test-select");
 let suppressLevelTestJump = false;
+const SHOW_LEVEL_TEST_ADD_COINS = false;
 const levelTestAddCoinsBtn = document.getElementById("level-test-add-coins");
 const clearDataTestBtn = document.getElementById("clear-data-test-btn");
 const backgroundDebugToggleBtn = document.getElementById("background-debug-toggle");
@@ -301,6 +304,8 @@ let outOfMovesContinueMovesEl = document.getElementById("out-of-moves-continue-m
 let outOfMovesContinueCostEl = document.getElementById("out-of-moves-continue-cost");
 let outOfMovesContinueBuyEl = document.getElementById("out-of-moves-continue-buy");
 const gameplayTip = createGameplayTipController({ hostEl: phoneFrameEl });
+let pendingLevel1TutorialStart = false;
+let onBubbleSpawnCompleteHook = null;
 
 const isIOSDevice = (() => {
   const ua = navigator.userAgent || "";
@@ -765,6 +770,23 @@ const {
   levelRuntime,
 } = gameRuntime;
 
+const level1Tutorial = createLevel1TutorialController({
+  phoneFrameEl,
+  getCamera: () => camera,
+  getRenderer: () => renderer,
+});
+
+onBubbleSpawnCompleteHook = () => {
+  if (!pendingLevel1TutorialStart) return;
+  pendingLevel1TutorialStart = false;
+  const level = state.activeLevel ?? LEVELS[state.currentLevelIndex];
+  level1Tutorial.start({
+    fruits,
+    gridSize: level?.gridSize ?? 3,
+    remainingMoves: Math.max(0, state.stepLimit - state.stepsUsed),
+  });
+};
+
 const winCinematicDebugUi = createWinCinematicDebugUi({
   elements: {
     toggleBtn: winCinematicToggleBtn,
@@ -1153,6 +1175,7 @@ const sessionFlow = createSessionFlowController({
   onPersistLevelProgress: persistLevelProgress,
   onBackHomeFromResult: backHomeFromResult,
   onLevelLoadStarted: () => {
+    level1Tutorial.cancel();
     setGameplayHudControlsVisible(true, {
       hudMetaLeftEl,
       restartBtnEl: gameplayRestartBtnEl,
@@ -1168,26 +1191,23 @@ const sessionFlow = createSessionFlowController({
     const quickRestart = state.quickLevelRestart;
     state.quickLevelRestart = false;
     state.levelTransitioning = true;
+    pendingLevel1TutorialStart = level1Tutorial.shouldRun(index);
     gridBoardSystem.show(level.gridLayout, { fadeIn: !quickRestart });
     bubbleSpawnSystem.start(fruits, level.gridLayout, { instant: quickRestart });
     if (quickRestart) {
       state.levelTransitioning = false;
+      if (pendingLevel1TutorialStart) {
+        pendingLevel1TutorialStart = false;
+        level1Tutorial.start({
+          fruits,
+          gridSize: level.gridSize ?? 3,
+          remainingMoves: Math.max(0, state.stepLimit - state.stepsUsed),
+        });
+      }
     }
     gameAudio.playRandomPopAudio({ volumeScale: 0.3 });
-    setGameplayRulesPanelVisible(true);
-    if (!quickRestart) {
-      const gridSize = level.gridSize ?? 3;
-      const hasMechanisms = Array.isArray(level.mechanisms) && level.mechanisms.length > 0;
-      const tip = index === 0
-        ? `第1关：${gridSize}×${gridSize}，捏碎泡泡会给四周染色！`
-        : hasMechanisms
-          ? `第${index + 1}关：箭头泡泡捏碎时，四邻染色并沿箭头传到尽头`
-          : `第${index + 1}关：${gridSize}×${gridSize}，让剩下泡泡颜色一致`;
-      const duration = hasMechanisms ? 3200 : index === 0 ? 2800 : 2200;
-      gameUI.showCommentary(tip, duration);
-    } else {
-      gameplayTip.clear();
-    }
+    setGameplayRulesPanelVisible(false);
+    gameplayTip.clear();
     void warmupBubbleRenderer({ renderer, scene, camera, fruits });
   },
   createBubbleEntity: ({
@@ -1287,6 +1307,7 @@ function createGameRuntime() {
     clickSoundUrl,
     gainCoinSoundUrl,
     victoryPerfectSoundUrl: VICTORY_PERFECT_SOUND_URL,
+    gameLoseSoundUrl: GAME_LOSE_SOUND_URL,
     selectScaleFrequencies,
   });
 
@@ -1306,6 +1327,7 @@ function createGameRuntime() {
   const bubbleSpawnSystem = createBubbleSpawnSystem({
     onComplete: () => {
       state.levelTransitioning = false;
+      onBubbleSpawnCompleteHook?.();
     },
   });
 
@@ -1682,7 +1704,7 @@ function bindGameplaySettingsMenu() {
 }
 
 function canRestartCurrentLevel() {
-  return state.started && state.resourcesReady && !state.gameplayIntroOpen;
+  return state.started && state.resourcesReady;
 }
 
 function bindGameplayRestart() {
@@ -2098,6 +2120,7 @@ function continueAfterOutOfMoves() {
 
 function triggerOutOfMovesContinueFlow() {
   if (state.gameOver || state.outOfMovesHandling || state.levelTransitioning) return;
+  gameAudio.playGameLoseAudio();
   state.outOfMovesHandling = true;
   state.pointerDown = false;
   state.pressTarget = null;
@@ -2268,7 +2291,6 @@ function init() {
   bindGameplaySettingsMenu();
   bindGameplayRestart();
   bindOutOfMovesContinueModal();
-  bindGameplayIntroModal();
   gameUI.closeResult();
   setupDevLocale();
   setupLevelTestControls();
@@ -2333,16 +2355,21 @@ function setupLevelTestControls() {
   }
 
   let addCoinsBtn = levelTestAddCoinsBtn;
-  if (!addCoinsBtn) {
-    const host = document.getElementById("level-test");
-    if (host) {
-      addCoinsBtn = document.createElement("button");
-      addCoinsBtn.id = "level-test-add-coins";
-      addCoinsBtn.className = "tool-btn";
-      addCoinsBtn.type = "button";
-      addCoinsBtn.textContent = t("index.debug.addCoins");
-      host.insertBefore(addCoinsBtn, levelTestToggleBtn);
+  if (SHOW_LEVEL_TEST_ADD_COINS) {
+    if (!addCoinsBtn) {
+      const host = document.getElementById("level-test");
+      if (host) {
+        addCoinsBtn = document.createElement("button");
+        addCoinsBtn.id = "level-test-add-coins";
+        addCoinsBtn.className = "tool-btn";
+        addCoinsBtn.type = "button";
+        addCoinsBtn.textContent = t("index.debug.addCoins");
+        host.insertBefore(addCoinsBtn, levelTestToggleBtn);
+      }
     }
+  } else {
+    addCoinsBtn?.classList.add("hidden");
+    addCoinsBtn = null;
   }
 
   levelTestSelectEl.innerHTML = "";
@@ -2498,11 +2525,7 @@ function startGame() {
   if (!state.resourcesReady) return;
   hideOutOfMovesContinueModal();
   state.outOfMovesContinuePending = false;
-  const shouldShowIntro = !gameplayIntroSeen;
   sessionFlow.startGame();
-  if (shouldShowIntro && state.started) {
-    openGameplayIntroModal();
-  }
 }
 
 function loadLevel(index) {
@@ -2516,7 +2539,7 @@ function resetFruits(level) {
 }
 
 function onPointerDown(ev) {
-  if (!state.resourcesReady || !state.started || state.gameOver || state.levelTransitioning || state.victoryPopActive || state.defeatPopActive || state.gameplayIntroOpen || !renderer) return;
+  if (!state.resourcesReady || !state.started || state.gameOver || state.levelTransitioning || state.victoryPopActive || state.defeatPopActive || !renderer) return;
   if (state.pressAwaitRelease || mechanismArrowProjectileSystem.isActive()) return;
   if (state.stepLimit > 0 && state.stepsUsed >= state.stepLimit) {
     gameUI.showCommentary("Out of moves for this level.", 1000);
@@ -2531,6 +2554,11 @@ function onPointerDown(ev) {
   if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) return;
 
   const world = screenToWorld(ev.clientX, ev.clientY);
+  const pick = pressSystem.pickFruitAtWorldPoint(world.x, world.y, fruits);
+  if (level1Tutorial.isActive() && pick && !level1Tutorial.isPressAllowed(pick.fruit)) {
+    level1Tutorial.onWrongPress();
+    return;
+  }
   const began = pressSystem.beginPress({
     state,
     fruits,
@@ -2571,6 +2599,9 @@ function tick() {
     consumeStep,
     onPop: () => gameAudio.playRandomPopAudio(),
     onBurst: (fruit, burstDir) => {
+      level1Tutorial.onPop(fruit, {
+        remainingMoves: Math.max(0, state.stepLimit - state.stepsUsed),
+      });
       const popColorId = fruit.colorId;
       const popColorDef = colors?.[popColorId];
       if (fruit.mechanismDirection) {
@@ -2632,6 +2663,9 @@ function tick() {
 
   bubbleSpawnSystem.update(dt);
   playfieldBackground.update(dt);
+  if (level1Tutorial.isActive()) {
+    level1Tutorial.update();
+  }
 
   renderer.render(scene, camera);
   const restoreAutoClear = renderer.autoClear;
@@ -2752,6 +2786,9 @@ function screenToWorld(clientX, clientY) {
 
 function resize() {
   layoutViewport.resize();
+  if (level1Tutorial.isActive()) {
+    level1Tutorial.update();
+  }
 }
 
 function updatePhoneAspect() {

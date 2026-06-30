@@ -250,7 +250,6 @@ export function createSessionFlowController({
   }
 
   function openLevelLoseModal() {
-    gameAudio?.playGameLoseAudio?.();
     gameUI.openSimpleLevelWin({
       title: `第${state.currentLevelIndex + 1}关失败`,
       desc: "步数用完了",

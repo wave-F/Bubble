@@ -14,8 +14,8 @@ const sourceHtmlPath = path.join(rootDir, "index.html");
 const releaseAssets = {
   images: [
     "currency128_Coin.png",
-    "tittleRibbon_Yellow.png",
-    "tittleRibbon_Red.png",
+    "HandPointer.png",
+    "iconShade_Restart.png",
   ],
   popAudio: [
     "oga-pop1.ogg",
@@ -29,6 +29,8 @@ const releaseAssets = {
     "oga-pop10.ogg",
     "click.wav",
     "gain_coin.wav",
+    "gamelose.mp3",
+    "win.mp3",
   ],
 };
 

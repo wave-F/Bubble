@@ -77,6 +77,7 @@
 }
 
 html.is-boot-loading #phone-frame,
+html.is-boot-loading #gameplay-help-tool,
 html.is-boot-loading #level-test,
 html.is-boot-loading #light-debug,
 html.is-boot-loading #pop-ring-debug,

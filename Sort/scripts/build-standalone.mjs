@@ -224,7 +224,7 @@ const html = `<!doctype html>
     </div>
 
     <div id="level-test" aria-label="Level test tools">
-      <button id="level-test-add-coins" class="tool-btn" type="button">Test +50 Coins</button>
+      <button id="level-test-add-coins" class="tool-btn hidden" type="button">Test +50 Coins</button>
       <button id="level-test-toggle" class="tool-btn" type="button">Level Test</button>
       <div id="level-test-panel" class="hidden">
         <label for="level-test-select">选择关卡（即切换）</label>
