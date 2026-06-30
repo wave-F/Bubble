@@ -8,6 +8,7 @@ export function createGameAudio({
   gainCoinSoundUrl = "",
   gameWinSoundUrl = "",
   gameLoseSoundUrl = "",
+  victoryPerfectSoundUrl = "",
 } = {}) {
   const state = {
     context: null,
@@ -28,6 +29,8 @@ export function createGameAudio({
     gameWinIndex: 0,
     gameLosePool: [],
     gameLoseIndex: 0,
+    victoryPerfectPool: [],
+    victoryPerfectIndex: 0,
     bgmUnlockRetryBound: false,
     bgmUnlockRetryHandler: null,
     errorLastAt: 0,
@@ -122,6 +125,10 @@ export function createGameAudio({
 
   function playGameLoseAudio() {
     playOneShotAudio(gameLoseSoundUrl, "gameLosePool", "gameLoseIndex", 0.4);
+  }
+
+  function playVictoryPerfectAudio() {
+    playOneShotAudio(victoryPerfectSoundUrl, "victoryPerfectPool", "victoryPerfectIndex", 0.45);
   }
 
   function unbindBgmUnlockRetry() {
@@ -293,6 +300,7 @@ export function createGameAudio({
       gainCoinSoundUrl,
       gameWinSoundUrl,
       gameLoseSoundUrl,
+      victoryPerfectSoundUrl,
       levelBgmUrl,
     ].filter(Boolean);
 
@@ -303,6 +311,7 @@ export function createGameAudio({
     getNextGainCoinAudio();
     getNextOneShotAudio(gameWinSoundUrl, "gameWinPool", "gameWinIndex", 0.4);
     getNextOneShotAudio(gameLoseSoundUrl, "gameLosePool", "gameLoseIndex", 0.4);
+    getNextOneShotAudio(victoryPerfectSoundUrl, "victoryPerfectPool", "victoryPerfectIndex", 0.45);
     getLevelBgm();
   }
 
@@ -496,6 +505,7 @@ export function createGameAudio({
     playGainCoinAudio,
     playGameWinAudio,
     playGameLoseAudio,
+    playVictoryPerfectAudio,
     playRandomPopAudio,
     resetSelectToneProgression,
     playSelectTone,

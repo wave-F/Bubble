@@ -1,11 +1,12 @@
 export const WIN_CINEMATIC_STORAGE_KEY = "fruit_win_cinematic_tuning_v1";
 
 export const WIN_CINEMATIC_DEFAULTS = {
-  settleAfterComplete: 0.2,
-  clearDelayMs: 250,
+  prePopDelaySec: 0.85,
+  settleAfterComplete: 0.4,
+  clearDelayMs: 600,
   motionDuration: 0.65,
-  overlayDelaySec: 0.85,
-  commentaryDurationMs: 750,
+  overlayDelaySec: 1.4,
+  commentaryDurationMs: 1200,
   popInitialInterval: 0.11,
   popAccelFactor: 0.78,
   popMinInterval: 0.035,
@@ -36,6 +37,7 @@ export function createWinCinematicTuning(initial = {}) {
   const state = { ...WIN_CINEMATIC_DEFAULTS, ...initial };
 
   function normalize() {
+    state.prePopDelaySec = clampNumber(state.prePopDelaySec, 0, 3);
     state.settleAfterComplete = clampNumber(state.settleAfterComplete, 0, 2);
     state.clearDelayMs = Math.round(clampNumber(state.clearDelayMs, 0, 3000));
     state.motionDuration = clampNumber(state.motionDuration, 0.1, 5);

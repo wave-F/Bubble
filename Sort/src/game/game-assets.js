@@ -23,4 +23,10 @@ export const GAME_UI_AUDIO_URLS = [
   "./assets/audio/pop/gain_coin.wav",
 ];
 
-export const GAME_AUDIO_URLS = [...GAME_POP_SOUND_URLS, ...GAME_UI_AUDIO_URLS];
+export const VICTORY_PERFECT_SOUND_URL = "./assets/audio/pop/win.mp3";
+
+export const GAME_AUDIO_URLS = [
+  ...GAME_POP_SOUND_URLS,
+  ...GAME_UI_AUDIO_URLS,
+  VICTORY_PERFECT_SOUND_URL,
+];

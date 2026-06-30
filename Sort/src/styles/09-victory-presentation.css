@@ -1,8 +1,54 @@
+.gameplay-center-tip.is-victory-perfect {
+  top: 24%;
+  max-width: calc(100% - 24px);
+  padding: 12px 22px;
+  border-radius: 20px;
+  border-width: 2px;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  white-space: nowrap;
+  transition: none;
+  text-shadow:
+    0 2px 0 color-mix(in srgb, var(--win-pill-text, #fff5f5) 35%, transparent),
+    0 8px 22px color-mix(in srgb, var(--win-pill-bg, #321010) 55%, transparent);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--win-pill-border, rgba(255, 255, 255, 0.65)) 22%, transparent),
+    0 14px 36px color-mix(in srgb, var(--win-pill-bg, #321010) 48%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--win-pill-text, #fff5f5) 30%, transparent);
+}
+
+.gameplay-center-tip.is-victory-perfect.show {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  animation: victory-perfect-pop 0.58s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 .gameplay-center-tip.is-victory-palette {
   background: color-mix(in srgb, var(--win-pill-bg, rgba(70, 24, 24, 0.92)) 92%, transparent);
   color: var(--win-pill-text, #fff5f5);
   border-color: color-mix(in srgb, var(--win-pill-border, rgba(255, 255, 255, 0.65)) 70%, transparent);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--win-pill-bg, #321010) 45%, transparent);
+}
+
+@keyframes victory-perfect-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.32);
+  }
+  52% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.14);
+  }
+  72% {
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  86% {
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 #phone-frame.is-victory-presentation #hud,

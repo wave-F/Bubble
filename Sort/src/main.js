@@ -55,6 +55,7 @@ import {
   GAME_POP_SOUND_FILES,
   GAME_POP_SOUND_URLS,
   GAME_UI_AUDIO_URLS,
+  VICTORY_PERFECT_SOUND_URL,
 } from "./game/game-assets.js";
 import { preloadFile, preloadImage } from "./game/resource-loader.js";
 import { createLoadingScreenController } from "./ui/loading-screen.js";
@@ -428,6 +429,7 @@ const state = {
   resourcesReady: false,
   levelTransitioning: false,
   victoryPopActive: false,
+  victoryPrePopDelayRemaining: 0,
   defeatPopActive: false,
   defeatModalDelayRemaining: 0,
   victoryBubbleColorId: null,
@@ -627,9 +629,32 @@ function resetDefeatPopState() {
 function resetVictoryPopState() {
   victoryPopSequence.reset();
   state.victoryPopActive = false;
+  state.victoryPrePopDelayRemaining = 0;
+  gameplayTip.clear();
   resetDefeatPopState();
   playfieldBackground.clearVictoryTint();
   winCinematicTuning.applyCssVars();
+}
+
+function showVictoryPerfectTip() {
+  const tuning = winCinematicTuning.get();
+  const usePalette = tuning.useBubblePalette !== false;
+  gameplayTip.show("完美！", tuning.commentaryDurationMs, {
+    victoryPalette: usePalette,
+    victoryPerfect: true,
+  });
+}
+
+function beginVictoryPrelude() {
+  captureVictoryBubbleColorId(fruits);
+  applyActiveVictoryPalette(state.victoryBubbleColorId);
+  showVictoryPerfectTip();
+  gameAudio.playVictoryPerfectAudio();
+  state.victoryPrePopDelayRemaining = winCinematicTuning.get().prePopDelaySec;
+  state.victoryPopActive = true;
+  state.pointerDown = false;
+  state.pressAwaitRelease = false;
+  roundState.clearQueuedSelections();
 }
 
 function countActiveFruits() {
@@ -1163,6 +1188,7 @@ function createGameRuntime() {
     popSoundUrls,
     clickSoundUrl,
     gainCoinSoundUrl,
+    victoryPerfectSoundUrl: VICTORY_PERFECT_SOUND_URL,
     selectScaleFrequencies,
   });
 
@@ -1255,6 +1281,7 @@ function createGameRuntime() {
     },
     onHideLevelWinOverlay: () => {
       gameUI.closeSimpleLevelWin();
+      gameplayTip.clear();
       victoryPresentation.reset({ scene });
       clearActiveVictoryPalette();
     },
@@ -1272,8 +1299,8 @@ function createGameRuntime() {
     getClearDelayMs: () => winCinematicTuning.get().clearDelayMs,
     getOverlayDelaySec: () => winCinematicTuning.get().overlayDelaySec,
     getCommentaryDurationMs: () => winCinematicTuning.get().commentaryDurationMs,
-    clearDelayMs: 250,
-    overlayDelaySec: 0.85,
+    clearDelayMs: 600,
+    overlayDelaySec: 1.4,
   });
 
   const levelRuntime = createLevelRuntime({
@@ -2499,15 +2526,18 @@ function tick() {
     boardUnified
     && remaining > 0
     && !victoryPopSequence.hasStarted()
+    && state.victoryPrePopDelayRemaining <= 0
     && !state.gameOver
     && !state.defeatPopActive
   ) {
-    captureVictoryBubbleColorId(fruits);
-    victoryPopSequence.start(fruits);
-    state.victoryPopActive = true;
-    state.pointerDown = false;
-    state.pressAwaitRelease = false;
-    roundState.clearQueuedSelections();
+    beginVictoryPrelude();
+  }
+
+  if (state.victoryPrePopDelayRemaining > 0 && !victoryPopSequence.hasStarted()) {
+    state.victoryPrePopDelayRemaining = Math.max(0, state.victoryPrePopDelayRemaining - dt);
+    if (state.victoryPrePopDelayRemaining <= 0) {
+      victoryPopSequence.start(fruits);
+    }
   }
 
   if (state.gameOver) {
@@ -2536,6 +2566,8 @@ function tick() {
     } else if (state.defeatPopActive || state.gameOver || !victoryPopsDone) {
       levelClearSignal = Math.max(1, remaining);
     }
+  } else if (state.victoryPrePopDelayRemaining > 0) {
+    levelClearSignal = Math.max(1, remaining);
   } else if (winConditionMet && !state.gameOver) {
     levelClearSignal = 0;
   }

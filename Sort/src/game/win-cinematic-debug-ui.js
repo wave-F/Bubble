@@ -1,4 +1,5 @@
 const FIELD_SPECS = [
+  { key: "prePopDelaySec", label: "Pre-pop delay (s)", step: 0.05, min: 0, max: 3 },
   { key: "settleAfterComplete", label: "Pop settle (s)", step: 0.05, min: 0, max: 2 },
   { key: "clearDelayMs", label: "Clear delay (ms)", step: 50, min: 0, max: 3000 },
   { key: "motionDuration", label: "Bg/grid fade (s)", step: 0.05, min: 0.1, max: 5 },

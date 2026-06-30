@@ -19,7 +19,7 @@ export function createGameplayTipController({ hostEl } = {}) {
       hideTimer = 0;
     }
     if (!tipEl) return;
-    tipEl.classList.remove("show", "is-victory-palette");
+    tipEl.classList.remove("show", "is-victory-palette", "is-victory-perfect");
   }
 
   function show(text, durationMs = 1200, options = {}) {
@@ -31,9 +31,14 @@ export function createGameplayTipController({ hostEl } = {}) {
     if (options.victoryPalette) {
       el.classList.add("is-victory-palette");
     }
+    if (options.victoryPerfect) {
+      el.classList.add("is-victory-perfect");
+    }
+    el.classList.remove("show");
+    void el.offsetWidth;
     el.classList.add("show");
     hideTimer = window.setTimeout(() => {
-      el.classList.remove("show", "is-victory-palette");
+      el.classList.remove("show", "is-victory-palette", "is-victory-perfect");
       hideTimer = 0;
     }, durationMs);
   }
