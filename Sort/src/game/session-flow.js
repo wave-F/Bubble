@@ -29,6 +29,7 @@ export function createSessionFlowController({
   onPersistLevelProgress,
   onBackHomeFromResult,
   onAfterLevelLoaded,
+  onAfterBoardRespawn,
   onLevelLoadStarted,
   onResetVictoryPop,
   createBubbleEntity,
@@ -41,8 +42,8 @@ export function createSessionFlowController({
     onPersistLevelProgress?.();
   }
 
-  function resetFruits(level) {
-    burstSystem.clear();
+  function resetFruits(level, { clearBurstVfx = true } = {}) {
+    if (clearBurstVfx) burstSystem.clear();
     state.pendingPops.length = 0;
     for (const fruit of fruits) scene.remove(fruit.group);
     fruits.length = 0;
@@ -101,7 +102,6 @@ export function createSessionFlowController({
     state.pendingWinReward = 0;
     state.rewardAppliedThisRound = true;
     levelFlow.reset();
-    burstSystem.clear();
     victoryRainSystem.reset();
     onResetVictoryPop?.();
     onSetLevelTestSelection?.(index);
@@ -189,6 +189,34 @@ export function createSessionFlowController({
       state.started = false;
       onShowHomeScreen?.();
     }
+  }
+
+  function respawnBoardFromActiveLevel() {
+    if (!state.started) return false;
+    const level = state.activeLevel;
+    if (!level) return loadLevel(state.currentLevelIndex);
+
+    onHideOutOfMovesBanner?.();
+    gameUI.closeSimpleLevelWin();
+    gameUI.closeResult();
+    state.gameOver = false;
+    state.defeatPopActive = false;
+    state.outOfMovesHandling = false;
+    state.pointerDown = false;
+    state.pressTarget = null;
+    state.pressAwaitRelease = false;
+    state.outOfMovesContinuePending = false;
+    state.pendingWinReward = 0;
+    state.rewardAppliedThisRound = true;
+    state.levelTransitioning = true;
+    onClearQueuedSelections?.();
+    state.pendingPops.length = 0;
+    state.stepsUsed = 0;
+    levelFlow.reset();
+    onUpdateStepsHud?.();
+    resetFruits(level, { clearBurstVfx: true });
+    onAfterBoardRespawn?.(level);
+    return true;
   }
 
   function retryCurrentLevelSimple() {
@@ -293,6 +321,7 @@ export function createSessionFlowController({
     grantLevelWinProgress,
     retryCurrentLevelFromResult,
     retryCurrentLevelSimple,
+    respawnBoardFromActiveLevel,
     backHomeFromResult,
     startNextLevel,
     startGame,

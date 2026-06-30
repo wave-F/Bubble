@@ -515,6 +515,20 @@ export function createBurstSystem({
     }
   }
 
+  function hasActivePresentation() {
+    if (ringPool.initialized) {
+      for (let i = 0; i < ringPool.entries.length; i += 1) {
+        if (ringPool.entries[i].active) return true;
+      }
+    }
+    if (pool.initialized) {
+      for (let i = 0; i < pool.entries.length; i += 1) {
+        if (pool.entries[i].active) return true;
+      }
+    }
+    return false;
+  }
+
   function clear() {
     clearPopRings();
     if (!pool.initialized) return;
@@ -556,6 +570,7 @@ export function createBurstSystem({
     spawnForEntity,
     update,
     clear,
+    hasActivePresentation,
     applyPopRingTuning,
     getPopRingTuning,
   };
