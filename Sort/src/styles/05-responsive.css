@@ -34,8 +34,7 @@
   #background-debug,
   #light-debug,
   #pop-ring-debug,
-  #bubble-pop-debug,
-  #dev-locale-mount {
+  #bubble-pop-debug {
     display: none;
   }
 }
@@ -47,8 +46,7 @@ html.platform-mobile #win-cinematic-debug,
 html.platform-mobile #background-debug,
 html.platform-mobile #light-debug,
 html.platform-mobile #pop-ring-debug,
-html.platform-mobile #bubble-pop-debug,
-html.platform-mobile #dev-locale-mount {
+html.platform-mobile #bubble-pop-debug {
   display: none;
 }
 
