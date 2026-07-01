@@ -188,53 +188,53 @@
       "id": 5,
       "name": "染色-05",
       "difficulty": "medium",
-      "homeBubbleColorId": 1,
+      "homeBubbleColorId": 4,
       "gridSize": 4,
       "gridCellSize": 0.95,
       "gridBubbleFill": 0.82,
       "gridVerticalAlign": "center",
       "gridVerticalOffset": 0.2,
-      "seed": 97913,
+      "seed": 1782885982683,
       "fruitCount": 16,
       "colorIds": [
-        1,
-        2,
-        4
+        4,
+        5,
+        6
       ],
       "colorCounts": [
         {
-          "colorId": 1,
-          "count": 5
-        },
-        {
-          "colorId": 2,
-          "count": 5
-        },
-        {
           "colorId": 4,
           "count": 6
+        },
+        {
+          "colorId": 5,
+          "count": 5
+        },
+        {
+          "colorId": 6,
+          "count": 5
         }
       ],
       "cells": [
-        1,
         4,
-        2,
+        6,
+        4,
+        6,
+        6,
+        5,
+        5,
         4,
         4,
-        1,
+        5,
         4,
-        1,
-        2,
+        5,
+        6,
         4,
-        2,
-        2,
-        2,
-        1,
-        4,
-        1
+        6,
+        5
       ],
       "mechanisms": [],
-      "stepLimit": 5,
+      "stepLimit": 4,
       "winMode": "unify"
     },
     {
