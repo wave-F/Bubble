@@ -3,9 +3,11 @@ import { getDevTuningEntry } from "../config/dev-tuning-defaults.js";
 import { PLAYFIELD_BACKGROUND_DEFAULTS } from "../systems/playfield-background.js";
 import { loadTessellatedBackgroundTuning } from "./background-debug-ui.js";
 
-export function clearDevTuningLocalStorage() {
+export function clearDevTuningLocalStorage({ excludeKeys = [] } = {}) {
   if (typeof window === "undefined" || !window.localStorage) return;
+  const exclude = new Set(excludeKeys);
   for (const key of TUNING_EXPORT_KEYS) {
+    if (exclude.has(key)) continue;
     try {
       window.localStorage.removeItem(key);
     } catch {
@@ -44,8 +46,11 @@ export function reapplyShippedTuningDefaults({
   applyHudDebugTuning,
   applyUiLayoutDebugTuning,
   applyHomeUiTuning,
+  includeBackground = true,
 } = {}) {
-  clearDevTuningLocalStorage();
+  clearDevTuningLocalStorage({
+    excludeKeys: includeBackground ? [] : ["tessellated_bg_tuning_v1"],
+  });
 
   const shippedBubble = getDevTuningEntry("bubble_tuning_v1");
   if (shippedBubble && bubbleTuning) {
@@ -53,7 +58,7 @@ export function reapplyShippedTuningDefaults({
     lightDebugUi?.syncUiFromTuning?.();
   }
 
-  if (tessellatedBackgroundTuning) {
+  if (includeBackground && tessellatedBackgroundTuning) {
     const freshBg = loadTessellatedBackgroundTuning(
       shippedBackgroundDefaults(),
       tessellatedBackgroundTuningStorageKey,

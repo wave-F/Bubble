@@ -215,7 +215,6 @@ export function createSessionFlowController({
     state.stepsUsed = 0;
     levelFlow.reset();
     onUpdateStepsHud?.();
-    onReapplyShippedTuning?.();
     resetFruits(level, { clearBurstVfx: true });
     onAfterBoardRespawn?.(level);
     return true;

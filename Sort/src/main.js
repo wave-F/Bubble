@@ -501,7 +501,7 @@ const state = {
   restartAwaitingRespawn: false,
   restartRespawnDrainSince: 0,
   skipLevelTipOnNextLoad: false,
-  preserveShippedBackgroundTuning: false,
+
 };
 
 const RESTART_RESPAWN_DRAIN_MAX_MS = 1200;
@@ -1191,7 +1191,15 @@ function prepareBoardBubblesAfterSpawn() {
   void warmupBubbleRenderer({ renderer, scene, camera, fruits });
 }
 
-function reapplyShippedTuningForGameplay() {
+function applyPlayfieldBoardComplementBackground() {
+  backgroundDebugUi.applyBoardComplement?.({
+    resetBlur: false,
+    persist: true,
+    syncUi: false,
+  });
+}
+
+function reapplyShippedTuningForGameplay({ includeBackground = true } = {}) {
   reapplyShippedTuningDefaults({
     bubbleTuning,
     tessellatedBackgroundTuning,
@@ -1207,8 +1215,8 @@ function reapplyShippedTuningForGameplay() {
     applyHudDebugTuning,
     applyUiLayoutDebugTuning,
     applyHomeUiTuning,
+    includeBackground,
   });
-  state.preserveShippedBackgroundTuning = true;
 }
 
 const sessionFlow = createSessionFlowController({
@@ -1250,18 +1258,10 @@ const sessionFlow = createSessionFlowController({
       restartBtnEl: gameplayRestartBtnEl,
     });
   },
-  onReapplyShippedTuning: reapplyShippedTuningForGameplay,
+  onReapplyShippedTuning: () => reapplyShippedTuningForGameplay({ includeBackground: false }),
   onAfterLevelLoaded: (index, level) => {
     applyGameplayHudTheme(level, colors, { hudRootEl: hudEl });
-    if (!state.preserveShippedBackgroundTuning) {
-      backgroundDebugUi.applyBoardComplement?.({
-        resetBlur: false,
-        persist: true,
-        syncUi: false,
-      });
-    } else {
-      state.preserveShippedBackgroundTuning = false;
-    }
+    applyPlayfieldBoardComplementBackground();
     const quickRestart = state.quickLevelRestart;
     state.quickLevelRestart = false;
     state.levelTransitioning = true;
@@ -1279,6 +1279,7 @@ const sessionFlow = createSessionFlowController({
     prepareBoardBubblesAfterSpawn();
   },
   onAfterBoardRespawn: (level) => {
+    applyPlayfieldBoardComplementBackground();
     gridBoardSystem.show(level.gridLayout, { fadeIn: false });
     state.levelTransitioning = true;
     bubbleSpawnSystem.start(fruits, level.gridLayout, { instant: false });
@@ -1798,7 +1799,7 @@ function bindGameplayRestart() {
     ev.stopPropagation();
     if (!canRestartCurrentLevel()) return;
     gameAudio.playUiClickAudio();
-    reapplyShippedTuningForGameplay();
+    reapplyShippedTuningForGameplay({ includeBackground: false });
     gameplayTip.clear();
     state.gameOver = false;
     state.outOfMovesHandling = false;
