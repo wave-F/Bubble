@@ -694,15 +694,13 @@ export function createBubbleEntityClass({
       }
 
       this.idlePhase += dt * this.idleFrequency;
-      const wobbleX = Math.sin(this.idlePhase + this.idleOffsetX) * this.idleAmplitude;
-      const wobbleY = Math.cos(this.idlePhase * 0.86 + this.idleOffsetY) * this.idleAmplitude * 0.72;
       const breathe = 1 + Math.sin(this.idlePhase * 1.15) * 0.014;
       const dyeT = this.dyePulse > 0 ? this.dyePulse / 0.24 : 0;
       const dyeScale = 1 + dyeT * 0.12;
 
       this.bubble.position.set(
-        wobbleX * this.radius * 0.028 + this.pressNeighborPush.x,
-        wobbleY * this.radius * 0.028 + this.pressNeighborPush.y,
+        this.pressNeighborPush.x,
+        this.pressNeighborPush.y,
         0
       );
       const waveScale = this.popWavePhase === PopWavePhase.IDLE ? 1 : this.popWaveScaleMul;
