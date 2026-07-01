@@ -27,12 +27,28 @@
 }
 
 @media (hover: none) and (pointer: coarse) {
-  #level-test {
+  #level-test,
+  #gameplay-help-tool,
+  #gameplay-rules-panel,
+  #win-cinematic-debug,
+  #background-debug,
+  #light-debug,
+  #pop-ring-debug,
+  #bubble-pop-debug,
+  #dev-locale-mount {
     display: none;
   }
 }
 
-html.platform-ios #level-test {
+html.platform-mobile #level-test,
+html.platform-mobile #gameplay-help-tool,
+html.platform-mobile #gameplay-rules-panel,
+html.platform-mobile #win-cinematic-debug,
+html.platform-mobile #background-debug,
+html.platform-mobile #light-debug,
+html.platform-mobile #pop-ring-debug,
+html.platform-mobile #bubble-pop-debug,
+html.platform-mobile #dev-locale-mount {
   display: none;
 }
 

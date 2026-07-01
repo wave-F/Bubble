@@ -317,9 +317,19 @@ const isIOSDevice = (() => {
   return /iPhone|iPad|iPod/i.test(ua) || (platform === "MacIntel" && touchPoints > 1);
 })();
 
+const isCoarsePointerDevice = typeof window !== "undefined"
+  && Boolean(window.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches);
+
+const isMobileGameplayUi = isIOSDevice || isCoarsePointerDevice;
+
 if (isIOSDevice) {
   document.documentElement.classList.add("platform-ios");
   if (document.body) document.body.classList.add("platform-ios");
+}
+
+if (isMobileGameplayUi) {
+  document.documentElement.classList.add("platform-mobile");
+  if (document.body) document.body.classList.add("platform-mobile");
 }
 
 function setupHomeFloatBubbles() {
@@ -2159,7 +2169,8 @@ function showGameplayCenterTip(text, durationMs = 1200) {
 
 function setGameplayRulesPanelVisible(visible) {
   if (!gameplayRulesPanelEl) return;
-  gameplayRulesPanelEl.classList.toggle("hidden", !visible);
+  const shouldShow = Boolean(visible) && !isMobileGameplayUi;
+  gameplayRulesPanelEl.classList.toggle("hidden", !shouldShow);
 }
 
 function hideOutOfMovesContinueModal() {
