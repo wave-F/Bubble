@@ -27,6 +27,7 @@ import { getBubbleDebugMaterialDefaults } from "./config/dev-tuning-defaults.js"
 import {
   exportTuningSnapshotToClipboard,
   registerTuningExportContext,
+  saveTuningEntriesToRepo,
 } from "./dev/export-tuning-snapshot.js";
 
 const compatEl = document.getElementById("compat");
@@ -791,10 +792,23 @@ registerTuningExportContext({
   }),
 });
 
-syncBtn.addEventListener("click", () => {
-  const ok = persistBubbleMaterialToStorage();
+syncBtn.addEventListener("click", async () => {
+  const merged = mergeBubbleTuningForExport();
+  const localOk = persistBubbleMaterialToStorage();
+  const repoResult = await saveTuningEntriesToRepo({ bubble_tuning_v1: merged });
+
   compatEl.dataset.userMessage = "1";
-  compatEl.textContent = ok ? t("bubble.compat.syncOk") : t("bubble.compat.syncFail");
+  if (!localOk) {
+    compatEl.textContent = t("bubble.compat.syncFail");
+    return;
+  }
+  if (repoResult.ok) {
+    compatEl.textContent = t("bubble.compat.syncOkRepo");
+    return;
+  }
+  compatEl.textContent = t("bubble.compat.syncOkLocalOnly", {
+    reason: repoResult.error ?? "",
+  });
 });
 
 function setControlValue(id, value) {

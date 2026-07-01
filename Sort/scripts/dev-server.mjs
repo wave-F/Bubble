@@ -153,28 +153,38 @@ async function serveStatic(req, res) {
   res.end(data);
 }
 
+function requestPathname(req) {
+  try {
+    return new URL(req.url ?? "/", "http://localhost").pathname;
+  } catch {
+    return req.url?.split("?")[0] ?? "/";
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  const pathname = requestPathname(req);
 
   if (req.method === "OPTIONS") {
     res.writeHead(204).end();
     return;
   }
 
-  if (req.method === "POST" && req.url === "/api/levels/save") {
+  if (req.method === "POST" && pathname === "/api/levels/save") {
     await handleSaveLevels(req, res);
     return;
   }
 
-  if (req.method === "POST" && req.url === "/api/tuning/save") {
+  if (req.method === "POST" && pathname === "/api/tuning/save") {
     await handleSaveTuning(req, res);
     return;
   }
 
-  if (req.method === "GET" && req.url === "/api/health") {
-    sendJson(res, 200, { ok: true, saveApi: true });
+  if (req.method === "GET" && pathname === "/api/health") {
+    sendJson(res, 200, { ok: true, saveApi: true, tuningApi: true });
     return;
   }
 

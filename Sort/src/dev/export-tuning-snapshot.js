@@ -118,3 +118,55 @@ export async function exportTuningSnapshotToClipboard() {
 
   return { snapshot, copied, downloaded, empty: false };
 }
+
+/** POST tuning entries to dev server → src/config/dev-tuning.defaults.json */
+export async function saveTuningEntriesToRepo(entries) {
+  if (!entries || typeof entries !== "object") {
+    return { ok: false, empty: true, error: "No entries to save" };
+  }
+
+  const keys = Object.keys(entries);
+  if (keys.length === 0) {
+    return { ok: false, empty: true, error: "No entries to save" };
+  }
+
+  const snapshot = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    entries: cloneEntry(entries),
+    populated: keys.length,
+  };
+
+  try {
+    const res = await fetch("/api/tuning/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(snapshot),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.ok) {
+      let error = body.error ?? `HTTP ${res.status}`;
+      if (res.status === 405) {
+        error = "HTTP 405 — dev server 需要重启（在 Sort 目录执行 npm run dev）";
+      }
+      return {
+        ok: false,
+        snapshot,
+        error,
+        status: res.status,
+      };
+    }
+    return {
+      ok: true,
+      snapshot,
+      path: body.path ?? "src/config/dev-tuning.defaults.json",
+      updatedKeys: body.updatedKeys ?? [],
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      snapshot,
+      error: err?.message ?? "Network error",
+    };
+  }
+}
