@@ -28,6 +28,7 @@ import {
 } from "./game/victory-palette.js";
 import {
   applyBubbleSceneEnvironment,
+  syncBubbleMaterialsEnvironment,
   warmupBubbleRenderer,
 } from "./content/bubble-environment.js";
 import { createVictoryRainSystem } from "./systems/victory-rain-system.js";
@@ -1204,6 +1205,11 @@ const homeScreenController = createHomeScreenController({
   onShowCommentary: (text, durationMs) => gameUI.showCommentary(text, durationMs),
 });
 
+function prepareBoardBubblesAfterSpawn() {
+  syncBubbleMaterialsEnvironment(scene, scene.environment, 1.05);
+  void warmupBubbleRenderer({ renderer, scene, camera, fruits });
+}
+
 const sessionFlow = createSessionFlowController({
   state,
   fruits,
@@ -1264,7 +1270,7 @@ const sessionFlow = createSessionFlowController({
     gameAudio.playRandomPopAudio({ volumeScale: 0.3 });
     setGameplayRulesPanelVisible(false);
     gameplayTip.clear();
-    void warmupBubbleRenderer({ renderer, scene, camera, fruits });
+    prepareBoardBubblesAfterSpawn();
   },
   onAfterBoardRespawn: (level) => {
     gridBoardSystem.show(level.gridLayout, { fadeIn: false });
@@ -1272,6 +1278,7 @@ const sessionFlow = createSessionFlowController({
     bubbleSpawnSystem.start(fruits, level.gridLayout, { instant: false });
     gameAudio.playRandomPopAudio({ volumeScale: 0.3 });
     gameplayTip.clear();
+    prepareBoardBubblesAfterSpawn();
   },
   createBubbleEntity: ({
     id,
