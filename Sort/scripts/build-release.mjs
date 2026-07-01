@@ -3,6 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { buildProductionHtml } from "./build-html.mjs";
+import {
+  buildAssetRevision,
+  getFileRevision,
+  getTuningRevision,
+} from "./asset-revision.mjs";
 import { build } from "esbuild";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -89,10 +94,29 @@ async function buildWebRelease() {
     await cp(src, dest, { force: true });
   }
 
+  const mainJsPath = path.join(releaseDir, "main.js");
+  const tuningHash = await getTuningRevision(rootDir);
+  const mainJsHash = await getFileRevision(mainJsPath);
+  const assetRevision = buildAssetRevision({ tuningHash, mainJsHash });
+
   const sourceHtml = await readFile(sourceHtmlPath, "utf8");
-  const html = buildProductionHtml(sourceHtml);
+  const html = buildProductionHtml(sourceHtml, { assetRevision });
   await writeFile(path.join(releaseDir, "index.html"), html, "utf8");
 
+  const revisionMeta = {
+    assetRevision,
+    tuningHash,
+    mainJsHash,
+    builtAt: new Date().toISOString(),
+  };
+  await writeFile(
+    path.join(releaseDir, "build-revision.json"),
+    `${JSON.stringify(revisionMeta, null, 2)}\n`,
+    "utf8",
+  );
+  console.log(`Asset revision: ${assetRevision} (tuning=${tuningHash}, js=${mainJsHash})`);
+
+  return assetRevision;
 }
 
 async function cleanReleaseDir() {

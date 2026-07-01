@@ -1,26 +1,9 @@
+import { getDevTuningEntry } from "../config/dev-tuning-defaults.js";
+
 export const WIN_CINEMATIC_STORAGE_KEY = "fruit_win_cinematic_tuning_v1";
 
 export const WIN_CINEMATIC_DEFAULTS = {
-  prePopDelaySec: 0.85,
-  settleAfterComplete: 0.4,
-  clearDelayMs: 600,
-  motionDuration: 0.65,
-  overlayDelaySec: 1.4,
-  commentaryDurationMs: 1200,
-  victoryPopStartDelaySec: 0,
-  popInitialInterval: 0.11,
-  popAccelFactor: 0.78,
-  popMinInterval: 0.035,
-  titleAnimSec: 0.58,
-  btnDelaySec: 0.3,
-  btnAnimSec: 0.38,
-  loseOverlayDelaySec: 0.4,
-  loseTitleAnimSec: 0.42,
-  loseBtnDelaySec: 0.15,
-  loseBtnAnimSec: 0.28,
-  bgToHex: "e8f4ff",
-  useBubblePalette: true,
-  previewBubbleColorId: "blue",
+  ...getDevTuningEntry("fruit_win_cinematic_tuning_v1"),
 };
 
 function clampNumber(value, min, max) {

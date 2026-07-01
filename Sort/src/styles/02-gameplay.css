@@ -334,6 +334,10 @@
   margin-top: 4px;
 }
 
+#gameplay-help-tool.hidden {
+  display: none;
+}
+
 #gameplay-help-tool {
   position: fixed;
   top: 16px;

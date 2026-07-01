@@ -3,6 +3,11 @@ import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildProductionHtml } from "./build-html.mjs";
+import {
+  buildAssetRevision,
+  getFileRevision,
+  getTuningRevision,
+} from "./asset-revision.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +63,18 @@ await cp(popAudioSrcDir, popAudioWebDir, { recursive: true, force: true });
 await cp(bgmAudioSrcDir, bgmAudioWebDir, { recursive: true, force: true });
 await cp(imageSrcDir, imageWebDir, { recursive: true, force: true });
 
+const mainJsPath = path.join(webDir, "main.js");
+const tuningHash = await getTuningRevision(rootDir);
+const mainJsHash = await getFileRevision(mainJsPath);
+const assetRevision = buildAssetRevision({ tuningHash, mainJsHash });
+
 const sourceHtml = await readFile(path.join(rootDir, "index.html"), "utf8");
-const html = buildProductionHtml(sourceHtml);
+const html = buildProductionHtml(sourceHtml, { assetRevision });
 await writeFile(path.join(webDir, "index.html"), html, "utf8");
+
+await writeFile(
+  path.join(webDir, "build-revision.json"),
+  `${JSON.stringify({ assetRevision, tuningHash, mainJsHash, builtAt: new Date().toISOString() }, null, 2)}\n`,
+  "utf8",
+);
+console.log(`Asset revision: ${assetRevision} (tuning=${tuningHash}, js=${mainJsHash})`);

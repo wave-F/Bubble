@@ -1,17 +1,6 @@
-export const POP_RING_SHAPES = ["ring", "cross", "roundedStar"];
+import { getDevTuningEntry } from "../config/dev-tuning-defaults.js";
 
-export const POP_RING_DEFAULTS = {
-  shape: "ring",
-  enabled: true,
-  scaleStart: 0.75,
-  scaleEnd: 3.35,
-  ringInner: 0.97,
-  ringOuter: 1.03,
-  duration: 0.38,
-  opacityPeak: 1,
-  opacityAttack: 0.08,
-  lightnessOffset: 0.14,
-};
+export const POP_RING_SHAPES = ["ring", "cross", "roundedStar"];
 
 function clampNumber(value, min, max, fallback) {
   const n = Number(value);
@@ -19,9 +8,13 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, n));
 }
 
-/** @param {Partial<typeof POP_RING_DEFAULTS>} partial */
+function popRingRepoDefaults() {
+  return getDevTuningEntry("pop_ring_debug_v1") ?? {};
+}
+
+/** @param {Partial<ReturnType<typeof popRingRepoDefaults>>} partial */
 export function normalizePopRingTuning(partial = {}) {
-  const d = POP_RING_DEFAULTS;
+  const d = popRingRepoDefaults();
   let ringInner = clampNumber(partial.ringInner, 0.85, 0.99, d.ringInner);
   let ringOuter = clampNumber(partial.ringOuter, 1.01, 1.2, d.ringOuter);
   if (ringOuter <= ringInner + 0.01) {
@@ -49,6 +42,8 @@ export function normalizePopRingTuning(partial = {}) {
     lightnessOffset: clampNumber(partial.lightnessOffset, 0, 0.4, d.lightnessOffset),
   };
 }
+
+export const POP_RING_DEFAULTS = normalizePopRingTuning({});
 
 export function loadPopRingTuning(storageKey, defaults = POP_RING_DEFAULTS) {
   if (typeof window === "undefined" || !window.localStorage || !storageKey) {

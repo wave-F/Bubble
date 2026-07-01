@@ -2,6 +2,7 @@ import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { applyTuningSnapshot } from "./tuning-defaults-io.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -38,6 +39,28 @@ async function readBody(req) {
   const text = Buffer.concat(chunks).toString("utf8");
   if (!text) return null;
   return JSON.parse(text);
+}
+
+async function handleSaveTuning(req, res) {
+  try {
+    const payload = await readBody(req);
+    if (!payload?.entries || typeof payload.entries !== "object") {
+      sendJson(res, 400, { ok: false, error: "Invalid payload: entries object required" });
+      return;
+    }
+
+    const { updatedKeys, skippedKeys, unknownKeys } = await applyTuningSnapshot(payload);
+
+    sendJson(res, 200, {
+      ok: true,
+      path: "src/config/dev-tuning.defaults.json",
+      updatedKeys,
+      skippedKeys,
+      unknownKeys,
+    });
+  } catch (err) {
+    sendJson(res, 500, { ok: false, error: err?.message ?? "Save failed" });
+  }
 }
 
 async function handleSaveLevels(req, res) {
@@ -145,6 +168,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && req.url === "/api/tuning/save") {
+    await handleSaveTuning(req, res);
+    return;
+  }
+
   if (req.method === "GET" && req.url === "/api/health") {
     sendJson(res, 200, { ok: true, saveApi: true });
     return;
@@ -164,4 +192,5 @@ server.listen(PORT, () => {
   console.log(`  (also: /tools/level-editor, /colour-level-editor)`);
   console.log(`Bubble debug: http://localhost:${PORT}/tools/bubble-debug/`);
   console.log(`Save API: POST /api/levels/save -> src/config/levels.json`);
+  console.log(`Tuning API: POST /api/tuning/save -> src/config/dev-tuning.defaults.json`);
 });

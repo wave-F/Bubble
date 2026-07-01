@@ -53,6 +53,11 @@ import { createPopRingDebugUiController } from "./game/pop-ring-debug-ui.js";
 import { createBubblePopDebugUiController } from "./game/bubble-pop-debug-ui.js";
 import { POP_RING_DEFAULTS, loadPopRingTuning } from "./game/pop-ring-tuning.js";
 import { BUBBLE_POP_DEFAULTS, BUBBLE_POP_STORAGE_KEY } from "./game/bubble-pop-tuning.js";
+import { getDevTuningEntry } from "./config/dev-tuning-defaults.js";
+import {
+  reapplyShippedTuningDefaults,
+  shippedBackgroundDefaults,
+} from "./game/reapply-shipped-tuning.js";
 import {
   applyDomI18n,
   mountLocaleToggle,
@@ -387,39 +392,7 @@ const colors = [
 ];
 
 const defaultBubbleTuning = {
-  transmission: 0.93,
-  roughness: 0.1,
-  clearcoat: 0.42,
-  wobble: 0.022,
-  flow: 1.15,
-  dye: 1.12,
-  edge: 0.3,
-  iri: 0.75,
-  springTension: 0.12,
-  springDamping: 0.84,
-  lightKey: 1.25,
-  lightAmbient: 0.62,
-  lightRim: 0.82,
-  lightFill: 0.44,
-  lightEnvironment: 1.15,
-  toggleLightAmbient: true,
-  toggleLightKey: true,
-  toggleLightRim: true,
-  toggleLightFill: true,
-  toggleLightEnvironment: true,
-  toggleDye: true,
-  toggleEdge: true,
-  toggleIri: true,
-  pressFillRate: 2.86,
-  pressSpringMax: 0.55,
-  pressContactStrength: 0.72,
-  pressCompress: 0.72,
-  pressExpand: 0.34,
-  centerDentDepth: 0.42,
-  centerDentRadius: 0.72,
-  centerDentPower: 2.35,
-  centerDentNormal: 0.85,
-  centerDentRoughness: 0.18,
+  ...getDevTuningEntry("bubble_tuning_v1"),
 };
 
 const defaultHomeUiTuning = {
@@ -528,6 +501,7 @@ const state = {
   restartAwaitingRespawn: false,
   restartRespawnDrainSince: 0,
   skipLevelTipOnNextLoad: false,
+  preserveShippedBackgroundTuning: false,
 };
 
 const RESTART_RESPAWN_DRAIN_MAX_MS = 1200;
@@ -945,10 +919,7 @@ const backgroundDebugUi = createBackgroundDebugUiController({
   },
   background: playfieldBackground,
   tuning: tessellatedBackgroundTuning,
-  defaults: {
-    ...PLAYFIELD_BACKGROUND_DEFAULTS,
-    blobColors: PLAYFIELD_BACKGROUND_DEFAULTS.fluidBlobs.map((b) => b.color),
-  },
+  defaults: shippedBackgroundDefaults(),
   storageKey: tessellatedBackgroundTuningStorageKey,
   onPlayClick: () => gameAudio.playUiClickAudio(),
 });
@@ -1220,6 +1191,26 @@ function prepareBoardBubblesAfterSpawn() {
   void warmupBubbleRenderer({ renderer, scene, camera, fruits });
 }
 
+function reapplyShippedTuningForGameplay() {
+  reapplyShippedTuningDefaults({
+    bubbleTuning,
+    tessellatedBackgroundTuning,
+    tessellatedBackgroundTuningStorageKey,
+    playfieldBackground,
+    lightDebugUi,
+    backgroundDebugUi,
+    popRingDebugUi,
+    bubblePopDebugUi,
+    winCinematicTuning,
+    hudDebugTuning,
+    uiLayoutDebugTuning,
+    applyHudDebugTuning,
+    applyUiLayoutDebugTuning,
+    applyHomeUiTuning,
+  });
+  state.preserveShippedBackgroundTuning = true;
+}
+
 const sessionFlow = createSessionFlowController({
   state,
   fruits,
@@ -1259,13 +1250,18 @@ const sessionFlow = createSessionFlowController({
       restartBtnEl: gameplayRestartBtnEl,
     });
   },
+  onReapplyShippedTuning: reapplyShippedTuningForGameplay,
   onAfterLevelLoaded: (index, level) => {
     applyGameplayHudTheme(level, colors, { hudRootEl: hudEl });
-    backgroundDebugUi.applyBoardComplement?.({
-      resetBlur: false,
-      persist: true,
-      syncUi: false,
-    });
+    if (!state.preserveShippedBackgroundTuning) {
+      backgroundDebugUi.applyBoardComplement?.({
+        resetBlur: false,
+        persist: true,
+        syncUi: false,
+      });
+    } else {
+      state.preserveShippedBackgroundTuning = false;
+    }
     const quickRestart = state.quickLevelRestart;
     state.quickLevelRestart = false;
     state.levelTransitioning = true;
@@ -1802,6 +1798,7 @@ function bindGameplayRestart() {
     ev.stopPropagation();
     if (!canRestartCurrentLevel()) return;
     gameAudio.playUiClickAudio();
+    reapplyShippedTuningForGameplay();
     gameplayTip.clear();
     state.gameOver = false;
     state.outOfMovesHandling = false;

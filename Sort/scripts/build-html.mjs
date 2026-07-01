@@ -27,14 +27,22 @@ export function stripDevOnlyMarkup(html) {
     .replace(/<script[^>]*src="\.\/src\/main\.js[^"]*"[^>]*><\/script>\s*/gi, "")
     .replace(/<link rel="stylesheet" href="\.\/src\/styles\.css" \/>\s*/i, "");
 
-  for (const id of ["level-test", "light-debug"]) {
+  for (const id of ["level-test", "light-debug", "gameplay-help-tool"]) {
     out = removeBlockById(out, id);
   }
 
   return out;
 }
 
-export function buildProductionHtml(sourceHtml, { scriptTag = '<script src="./main.js"></script>' } = {}) {
+function assetUrl(basePath, assetRevision) {
+  if (!assetRevision) return basePath;
+  return `${basePath}?v=${assetRevision}`;
+}
+
+export function buildProductionHtml(
+  sourceHtml,
+  { assetRevision = "", scriptTag } = {},
+) {
   const titleMatch = sourceHtml.match(/<title>([^<]*)<\/title>/i);
   const title = titleMatch?.[1]?.trim() || "染色泡泡";
   const bodyMatch = sourceHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
@@ -43,6 +51,9 @@ export function buildProductionHtml(sourceHtml, { scriptTag = '<script src="./ma
   }
 
   const body = stripDevOnlyMarkup(bodyMatch[1]).trim();
+  const mainSrc = assetUrl("./main.js", assetRevision);
+  const cssHref = assetUrl("./styles.css", assetRevision);
+  const resolvedScriptTag = scriptTag ?? `<script src="${mainSrc}"></script>`;
 
   return `<!doctype html>
 <html lang="zh-CN">
@@ -51,11 +62,11 @@ export function buildProductionHtml(sourceHtml, { scriptTag = '<script src="./ma
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <link rel="icon" href="data:," />
     <title>${title}</title>
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="${cssHref}" />
   </head>
   <body>
     ${body}
-    ${scriptTag}
+    ${resolvedScriptTag}
   </body>
 </html>
 `;

@@ -8,3 +8,4 @@ coverage/
 www/
 release/
 standalone.html
+config/tuning-snapshot.json

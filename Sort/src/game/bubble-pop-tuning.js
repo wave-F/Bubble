@@ -1,9 +1,6 @@
-export const BUBBLE_POP_STORAGE_KEY = "bubble_pop_tuning_v1";
+import { getDevTuningEntry } from "../config/dev-tuning-defaults.js";
 
-export const BUBBLE_POP_DEFAULTS = {
-  flashMode: "white",
-  lightBubbleLift: 0.22,
-};
+export const BUBBLE_POP_STORAGE_KEY = "bubble_pop_tuning_v1";
 
 function clampNumber(value, min, max, fallback) {
   const n = Number(value);
@@ -11,15 +8,21 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, n));
 }
 
-/** @param {Partial<typeof BUBBLE_POP_DEFAULTS>} partial */
+function bubblePopRepoDefaults() {
+  return getDevTuningEntry("bubble_pop_tuning_v1") ?? {};
+}
+
+/** @param {Partial<ReturnType<typeof bubblePopRepoDefaults>>} partial */
 export function normalizeBubblePopTuning(partial = {}) {
-  const d = BUBBLE_POP_DEFAULTS;
+  const d = bubblePopRepoDefaults();
   const mode = partial.flashMode === "lightBubble" ? "lightBubble" : "white";
   return {
     flashMode: mode,
     lightBubbleLift: clampNumber(partial.lightBubbleLift, 0.05, 0.45, d.lightBubbleLift),
   };
 }
+
+export const BUBBLE_POP_DEFAULTS = normalizeBubblePopTuning({});
 
 export function loadBubblePopTuning(storageKey, defaults = BUBBLE_POP_DEFAULTS) {
   if (typeof window === "undefined" || !window.localStorage || !storageKey) {

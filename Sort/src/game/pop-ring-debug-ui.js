@@ -119,6 +119,16 @@ export function createPopRingDebugUiController({
     persistTuning();
   }
 
+  function flushToStorage() {
+    readTuningFromUi();
+    persistTuning();
+  }
+
+  function getTuning() {
+    readTuningFromUi();
+    return { ...tuning };
+  }
+
   function bind() {
     if (!burstSystem?.applyPopRingTuning) return;
 
@@ -146,5 +156,7 @@ export function createPopRingDebugUiController({
     bind,
     syncUiFromTuning,
     resetToDefaults,
+    flushToStorage,
+    getTuning,
   };
 }

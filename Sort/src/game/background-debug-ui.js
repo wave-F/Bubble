@@ -465,6 +465,14 @@ export function createBackgroundDebugUiController({
     applyBoardComplement({ resetBlur: true, persist: true, syncUi: true });
   }
 
+  function flushToStorage() {
+    onTuningChange();
+  }
+
+  function getTuningSnapshot() {
+    return { ...tuning };
+  }
+
   function bind() {
     if (!toggleBtn || !panelEl) return;
 
@@ -516,5 +524,7 @@ export function createBackgroundDebugUiController({
     resetToDefaults,
     applyPreset,
     applyBoardComplement,
+    flushToStorage,
+    getTuningSnapshot,
   };
 }

@@ -32,6 +32,7 @@ export function createSessionFlowController({
   onAfterBoardRespawn,
   onLevelLoadStarted,
   onResetVictoryPop,
+  onReapplyShippedTuning,
   createBubbleEntity,
 } = {}) {
   function grantLevelWinProgress(nextLevelIndex) {
@@ -214,6 +215,7 @@ export function createSessionFlowController({
     state.stepsUsed = 0;
     levelFlow.reset();
     onUpdateStepsHud?.();
+    onReapplyShippedTuning?.();
     resetFruits(level, { clearBurstVfx: true });
     onAfterBoardRespawn?.(level);
     return true;
@@ -236,6 +238,7 @@ export function createSessionFlowController({
     state.rewardAppliedThisRound = true;
     onClearQueuedSelections?.();
     state.pendingPops.length = 0;
+    onReapplyShippedTuning?.();
     const loaded = loadLevel(state.currentLevelIndex);
     if (!loaded) {
       state.started = false;

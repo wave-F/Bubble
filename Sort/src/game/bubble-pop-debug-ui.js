@@ -83,7 +83,13 @@ export function createBubblePopDebugUiController({
   }
 
   function getTuning() {
+    readTuningFromUi();
     return { ...tuning };
+  }
+
+  function flushToStorage() {
+    readTuningFromUi();
+    persistTuning();
   }
 
   function bind() {
@@ -110,5 +116,6 @@ export function createBubblePopDebugUiController({
     getTuning,
     resetToDefaults,
     syncUiFromTuning,
+    flushToStorage,
   };
 }

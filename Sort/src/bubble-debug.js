@@ -23,6 +23,11 @@ import {
   mechanismArrowOutlineDefaults,
   prepareProjectileArrowDraw,
 } from "./entities/mechanism-arrow-visual.js";
+import { getBubbleDebugMaterialDefaults } from "./config/dev-tuning-defaults.js";
+import {
+  exportTuningSnapshotToClipboard,
+  registerTuningExportContext,
+} from "./dev/export-tuning-snapshot.js";
 
 const compatEl = document.getElementById("compat");
 const swatches = Array.from(document.querySelectorAll(".swatch"));
@@ -70,36 +75,7 @@ mountLocaleToggle(localeMount, {
 });
 refreshBubbleDebugLocale();
 
-const defaults = {
-  transmission: 0.93,
-  roughness: 0.1,
-  clearcoat: 0.42,
-  wobble: 0.022,
-  flow: 1.15,
-  dye: 1.12,
-  edge: 0.3,
-  iri: 0.75,
-  springTension: 0.12,
-  springDamping: 0.84,
-  lightKey: 1.25,
-  lightAmbient: 0.62,
-  toggleDye: true,
-  toggleEdge: true,
-  toggleIri: true,
-  toggleBomb: false,
-  toggleMechanismArrow: true,
-  mechanismDirection: "right",
-  pressFillRate: 2.86,
-  pressSpringMax: 0.55,
-  pressContactStrength: 0.72,
-  pressCompress: 0.72,
-  pressExpand: 0.34,
-  centerDentDepth: 0.42,
-  centerDentRadius: 0.72,
-  centerDentPower: 2.35,
-  centerDentNormal: 0.85,
-  centerDentRoughness: 0.18,
-};
+const defaults = getBubbleDebugMaterialDefaults();
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xeef6ff);
@@ -740,8 +716,24 @@ if (popProgressInput) {
   });
 }
 
-syncBtn.addEventListener("click", () => {
-  const payload = {
+const exportTuningBtn = document.getElementById("export-tuning-btn");
+exportTuningBtn?.addEventListener("click", async () => {
+  const result = await exportTuningSnapshotToClipboard();
+  const { snapshot, copied, downloaded, empty } = result;
+  compatEl.dataset.userMessage = "1";
+  if (empty) {
+    compatEl.textContent = t("bubble.compat.exportTuningEmpty");
+  } else if (copied) {
+    compatEl.textContent = t("bubble.compat.exportTuningClipboardOk", { n: String(snapshot.populated) });
+  } else if (downloaded) {
+    compatEl.textContent = t("bubble.compat.exportTuningDownloadFallback", { n: String(snapshot.populated) });
+  } else {
+    compatEl.textContent = t("bubble.compat.exportTuningClipboardFail");
+  }
+});
+
+function buildBubbleMaterialSyncPayload() {
+  return {
     transmission: material.transmission,
     roughness: material.roughness,
     clearcoat: material.clearcoat,
@@ -768,15 +760,41 @@ syncBtn.addEventListener("click", () => {
     centerDentNormal: centerDentNormalUniform.value,
     centerDentRoughness: centerDentRoughnessUniform.value,
   };
+}
 
+function mergeBubbleTuningForExport() {
+  const payload = buildBubbleMaterialSyncPayload();
+  if (typeof window === "undefined" || !window.localStorage) return payload;
   try {
-    window.localStorage.setItem(tuningStorageKey, JSON.stringify(payload));
-    compatEl.dataset.userMessage = "1";
-    compatEl.textContent = t("bubble.compat.syncOk");
-  } catch (_err) {
-    compatEl.dataset.userMessage = "1";
-    compatEl.textContent = t("bubble.compat.syncFail");
+    const raw = window.localStorage.getItem(tuningStorageKey);
+    if (!raw) return payload;
+    return { ...JSON.parse(raw), ...payload };
+  } catch {
+    return payload;
   }
+}
+
+function persistBubbleMaterialToStorage() {
+  const merged = mergeBubbleTuningForExport();
+  try {
+    window.localStorage.setItem(tuningStorageKey, JSON.stringify(merged));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+registerTuningExportContext({
+  prepare: persistBubbleMaterialToStorage,
+  getLiveEntries: () => ({
+    bubble_tuning_v1: mergeBubbleTuningForExport(),
+  }),
+});
+
+syncBtn.addEventListener("click", () => {
+  const ok = persistBubbleMaterialToStorage();
+  compatEl.dataset.userMessage = "1";
+  compatEl.textContent = ok ? t("bubble.compat.syncOk") : t("bubble.compat.syncFail");
 });
 
 function setControlValue(id, value) {

@@ -14,7 +14,7 @@ export const PLAYFIELD_BACKGROUND_DEFAULTS = {
   ...TESSELLATED_CIRCLE_BACKGROUND_DEFAULTS,
   ...FLUID_MESH_DEFAULTS,
   circlePatternOpacity: 0.42,
-  circlesVisible: true,
+  circlesVisible: false,
 };
 
 export function createPlayfieldBackground({ scene, blobColors, getBoardContext, ...options } = {}) {

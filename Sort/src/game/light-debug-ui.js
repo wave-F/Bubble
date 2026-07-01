@@ -184,6 +184,22 @@ export function createLightDebugUiController({
     persistTuning();
   }
 
+  function readTuningFromUi() {
+    for (const group of groups) {
+      applyGroup(group);
+    }
+  }
+
+  function flushToStorage() {
+    readTuningFromUi();
+    persistTuning();
+  }
+
+  function getTuningSnapshot() {
+    readTuningFromUi();
+    return { ...tuning };
+  }
+
   function bind() {
     if (!toggleBtn || !panelEl) return;
 
@@ -210,5 +226,7 @@ export function createLightDebugUiController({
     applyAll,
     syncUiFromTuning,
     resetToDefaults,
+    flushToStorage,
+    getTuningSnapshot,
   };
 }
