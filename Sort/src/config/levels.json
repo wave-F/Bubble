@@ -469,14 +469,6 @@
           "direction": "down"
         },
         {
-          "index": 3,
-          "direction": "left"
-        },
-        {
-          "index": 12,
-          "direction": "right"
-        },
-        {
           "index": 15,
           "direction": "up"
         }
